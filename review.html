@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';">
+  <title>Review Unmatched Series</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+
+    .entry {
+      border: 1px solid #ccc;
+      margin-bottom: 16px;
+      padding: 12px;
+    }
+
+    .directory-list {
+      margin: 8px 0;
+    }
+
+    .directory-option {
+      margin-right: 10px;
+    }
+
+    .title-match {
+      text-align: left;
+      font-size: 1em;
+    }
+
+    .title-match:hover {
+      cursor: pointer;
+    }
+
+    .possible-directory {
+      text-align: left;
+      font-size: .8em;
+    }
+
+    .possible-directory:hover {
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+      transform: translateY(-4px) scale(1.03);
+      background: #f5f7fa;
+      cursor: pointer;
+    }
+
+    .labelled-title {
+      display: inline-block;
+      align-items: baseline;
+      /* keeps text aligned nicely */
+    }
+
+    .label {
+      display: inline-block;
+      width: 3em;
+      /* adjust to fit your desired fixed space */
+      min-width: 3em;
+      text-align: center;
+      /* or left/center as needed */
+      margin-right: 0.5em;
+      color: #999;
+      /* optional styling */
+    }
+
+    .no-entries {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <h2>Review Unmatched Series</h2>
+  <div id="review-list">
+    <p class="no-entries">No unmatched series to review!</p>
+  </div>
+  <button onclick="window.location.reload()">Reload</button>
+  <script src="review.js"></script>
+</body>
+
+</html>

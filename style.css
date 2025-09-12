@@ -1,0 +1,244 @@
+body {
+  font-family: sans-serif;
+  margin: 20px;
+}
+
+.scroll-container {
+  height: 88vh;
+  overflow-y: auto;
+  border: 1px solid #ccc;
+  padding: 10px;
+}
+
+.manga-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-height: 1.2em;
+  /* Adjust as needed for your font-size/line-height */
+  line-height: 1.2em;
+  min-height: 1.2em;
+  /* Ensures space for 3 lines even if short */
+}
+
+.label {
+  display: inline-block;
+  width: 3em;
+  /* adjust to fit your desired fixed space */
+  min-width: 2em;
+  text-align: center;
+  /* or left/center as needed */
+  margin-right: 0.5em;
+  color: #635e5e;
+  /* optional styling */
+}
+
+.label-type {
+  display: inline-block;
+  width: 4rem;
+  /* adjust to fit your desired fixed space */
+  min-width: 4rem;
+  text-align: center;
+  /* or left/center as needed */
+  margin-right: 0.5rem;
+  color: #635e5e;
+  /* optional styling */
+}
+
+.label-year {
+  display: inline-block;
+  width: 4rem;
+  /* adjust to fit your desired fixed space */
+  min-width: 4rem;
+  text-align: center;
+  /* or left/center as needed */
+  margin-right: 0.5rem;
+  color: #635e5e;
+  /* optional styling */
+}
+
+.label-section-header {
+  display: inline-block;
+  width: 4rem;
+  /* adjust to fit your desired fixed space */
+  min-width: 4rem;
+  margin-right: 0.5rem;
+  /* optional styling */
+}
+
+.record-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 10px;
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+}
+
+.record-row span {
+  min-width: 150px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.column {
+  float: left;
+  width: 14.28%;
+  padding: 10px;
+}
+
+.column {
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+/*
+.column:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  transform: translateY(-4px) scale(1.03);
+  background: #f5f7fa;
+  cursor: pointer;
+}
+*/
+.detail-image {
+  float: left;
+  width: 50%;
+  padding: 2px;
+}
+
+.detail-text {
+  float: left;
+  width: 50%;
+  padding: 2px;
+}
+
+/* Clearfix (clear floats) */
+.row::after {
+  content: "";
+  clear: both;
+  display: table;
+}
+
+/* Responsive layout - makes the three columns stack on top of each other instead of next to each other */
+@media screen and (max-width: 1300px) {
+  .column {
+    width: 100%;
+  }
+}
+
+.ui-container {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  position: relative;
+}
+
+/* Shared button style */
+.ui-button {
+  padding: 0.5rem 1rem;
+  background-color: #3490dc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  position: relative;
+  z-index: 1;
+}
+
+.ui-button:hover {
+  background-color: #2779bd;
+}
+
+/* Dropdown wrapper */
+.dropdown {
+  position: relative;
+}
+
+/* Dropdown menu */
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 0.25rem;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  list-style: none;
+  padding: 0;
+  width: 300px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+}
+
+.dropdown-menu li {
+  padding: 0.5rem;
+  cursor: pointer;
+}
+
+.dropdown-menu li:hover {
+  background-color: #f1f1f1;
+}
+
+.dropdown-menu li[data-disabled="true"] {
+  color: #aaa;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #fff;
+  width: 1000px;
+  height: 600px;
+  border-radius: 8px;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.3);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  padding: 24px;
+}
+
+.modal-body {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.modal-body .entry {
+  border: 1px solid #ccc;
+  margin-bottom: 16px;
+  padding: 12px;
+}
+
+.modal-body .entry-match {
+  border: 3px solid #064125;
+  margin-bottom: 16px;
+  padding: 12px;
+}
+
+.close-btn {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 2em;
+  cursor: pointer;
+}

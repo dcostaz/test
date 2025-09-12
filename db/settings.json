@@ -1,0 +1,63 @@
+{
+  "mangalist": [
+    {
+      "manga": {
+        "directoryPathName": "\\\\DS1515\\manga"
+      },
+      "database": {
+        "directoryPathName": "C:\\Users\\david\\OneDrive\\Documents\\manga-list\\db",
+        "manga": "manga.json",
+        "mangalist": "mangalist.json",
+        "hakuneko": "hakuneko.json",
+        "mangaupdates": "mangaupdates.json"
+      }
+    }
+  ],
+  "redis": [
+    {
+      "default": "ds1515",
+      "environment": {
+        "local": {
+          "host": "172.29.21.78",
+          "port": 6379
+        },
+        "ds1515": {
+          "host": "10.0.1.20",
+          "port": 26379
+        },
+        "wizard": {
+          "host": "10.0.1.83",
+          "port": 6379
+        }
+      }
+    }
+  ],
+  "hakuneko": [
+    {
+      "paths": {
+        "bookmarks": "C:\\SynologyDrive\\[manga]\\[h-bookmarks]\\hakuneko.bookmarks",
+        "chaptermarks": "C:\\SynologyDrive\\[manga]\\[h-bookmarks]\\hakuneko.chaptermarks"
+      }
+    }
+  ],
+  "mangaupdates": [
+    {
+      "credentials": {
+        "username": "dcostaz",
+        "password": "aju7CPT5pvz_nze7urt"
+      },
+      "api": {
+        "baseUrl": "https://api.mangaupdates.com/v1",
+        "endPoints": {
+          "login": {"template": "${baseUrl}/account/login"},
+          "listSearch":  {"template": "${baseUrl}/lists/${list_id}/search", "optional": {"per_page": 500, "throttle": 1000}},
+          "listGetSeriesItem":  {"template": "${baseUrl}/lists/series/${series_id}?unrenderedFields=true", "optional": {"throttle": 1000}},
+          "listUpdateSeries":  {"template": "${baseUrl}/lists/series/update", "optional": {"throttle": 1000}},
+          "listAddSeries":  {"template": "${baseUrl}/lists/series", "optional": {"throttle": 1000}},
+          "series":  {"template": "${baseUrl}/series/${series_id}", "optional": {"throttle": 1000}},
+          "seriesSearch":  {"template": "${baseUrl}/series/search", "optional": {"throttle": 1000}}
+        }
+      }
+    }
+  ]
+}
