@@ -51,7 +51,7 @@ const { type } = require('os');
 const { wait } = require(path.join(__root, 'utils', 'tools.cjs'));
 
 /** @type {UtilsConstructor} - Utils Class static members. */
-const Utils = require(path.join(__root, 'cls', 'utils.cjs'));
+const Utils = require(path.join(__root, 'utils', 'utils.cjs'));
 
 class MangaUpdates {
     /**
