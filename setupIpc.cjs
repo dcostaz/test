@@ -8,7 +8,7 @@ const { ipcRegistry, ipcDataRegistry } = require('./ipcRegistry.cjs');
 const fsExists = require('fs').existsSync; // Use existsSync for synchronous check
 
 /** @type {UtilsConstructor} - Utils Class static members. */
-const Utils = require(path.join(__root, 'cls', 'utils.cjs'));
+const Utils = require(path.join(__root, 'utils', 'utils.cjs'));
 
 const GLOBAL_LOGGING = true;
 

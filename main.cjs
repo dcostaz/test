@@ -36,7 +36,8 @@ const createWindow = () => {
             icon: path.join(__dirname, 'icon.png'),
             webPreferences: {
                 preload: preloadPath,
-                nodeIntegration: true
+                nodeIntegration: false,
+                contextIsolation: true
             }
         });
 
@@ -72,7 +73,8 @@ function openReviewWindow() {
             title: 'Review Unmatched Series',
             webPreferences: {
                 preload: preloadPath,
-                nodeIntegration: true
+                nodeIntegration: false,
+                contextIsolation: true
             }
         });
 

@@ -35,7 +35,7 @@ const Hakuneko = require(path.join(__root, 'cls', 'hakuneko.cjs'));
 const MangaUpdates = require(path.join(__root, 'cls', 'mangaupdates.cjs'));
 
 /** @type {UtilsConstructor} - Utils Class static members. */
-const Utils = require(path.join(__root, 'cls', 'utils.cjs'));
+const Utils = require(path.join(__root, 'utils', 'utils.cjs'));
 
 class Manga {
     /**

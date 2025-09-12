@@ -2,7 +2,7 @@
 const __root = require('app-root-path').path;
 const path = require('path');
 /** @type {UtilsConstructor} - Utils Class static members. */
-const Utils = require(path.join(__root, 'cls', 'utils.cjs'));
+const Utils = require(path.join(__root, 'utils', 'utils.cjs'));
 
 const fs = require('fs');
 

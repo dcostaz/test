@@ -10,7 +10,7 @@ const { JSONFile } = require('lowdb/node');
 const _ = require('lodash');
 
 /** @type {UtilsConstructor} - Utils Class static members. */
-const Utils = require(path.join(__root, 'cls', 'utils.cjs'));
+const Utils = require(path.join(__root, 'utils', 'utils.cjs'));
 
 /** @type {MangaConstructor} - Manga Class static members. */
 const Manga = require(path.join(__root, 'cls', 'manga.cjs'));

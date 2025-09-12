@@ -9,8 +9,8 @@
     "start": "electron .",
     "preload": "node preload.cjs",
     "global-dts": "node utils/generate-global-dts.cjs",
-    "lint": "eslint . --ext .js",
-    "lint:fix": "eslint . --ext .ts --fix"
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "keywords": [
     "manga"
@@ -19,7 +19,7 @@
   "license": "MIT",
   "devDependencies": {
     "@eslint/css": "^0.10.0",
-    "@eslint/js": "^9.32.0",
+    "@eslint/js": "^9.35.0",
     "@eslint/json": "^0.13.1",
     "@eslint/markdown": "^7.1.0",
     "@types/axios": "^0.14.4",
@@ -37,7 +37,6 @@
     "levenshtein-edit-distance": "^3.0.1",
     "lodash": "^4.17.21",
     "lowdb": "^7.0.1",
-    "node-json-db": "^2.3.1",
     "rater-js": "^1.0.1",
     "redis": "^5.6.0",
     "similarity": "^1.2.1",
