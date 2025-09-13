@@ -1,7 +1,7 @@
 'use strict';
 
 window.addEventListener('DOMContentLoaded', () => {
-    const imageContainer = document.getElementById('image-container');
+    const imageContainer = /** @type {HTMLDivElement} */ (document.getElementById('image-container'));
 
     window.viewerAPI.onReceiveCbzImages((event, images) => {
         // Clear any existing images

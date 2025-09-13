@@ -248,7 +248,7 @@ async function openCbzViewer(record) {
         const { width, height } = primaryDisplay.workAreaSize;
 
         cbzViewerWindow = new BrowserWindow({
-            width: width,
+            width: 800,
             height: height,
             title: `CBZ Viewer - ${record.hmanga}`,
             webPreferences: {
@@ -257,7 +257,7 @@ async function openCbzViewer(record) {
             }
         });
 
-        cbzViewerWindow.maximize();
+        //cbzViewerWindow.maximize();
 
         cbzViewerWindow.loadFile('viewer.html');
 
