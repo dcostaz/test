@@ -5,6 +5,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const prevBtn = /** @type {HTMLButtonElement} */ (document.getElementById('prev-chapter'));
     const nextBtn = /** @type {HTMLButtonElement} */ (document.getElementById('next-chapter'));
     const chapterInfo = /** @type {HTMLSpanElement} */ (document.getElementById('chapter-info'));
+    const navigationBar = /** @type {HTMLDivElement} */ (document.getElementById('navigation-bar'));
 
     let chapterList = [];
     let currentIndex = -1;
@@ -21,6 +22,7 @@ window.addEventListener('DOMContentLoaded', () => {
     function render(data) {
         // Clear existing images
         imageContainer.innerHTML = '';
+        imageContainer.scrollTop = 0;
 
         if (!data.images || data.images.length === 0) {
             imageContainer.textContent = 'No images found.';
