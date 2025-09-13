@@ -282,7 +282,7 @@ async function openCbzViewer(record) {
         cbzViewerWindow = new BrowserWindow({
             width: 800,
             height: height,
-            title: `CBZ Viewer - ${record.hmanga} - Chapter ${chapterNumber}`,
+            title: `CBZ Viewer - Chapter ${chapterNumber}`,
             webPreferences: {
                 preload: path.join(__dirname, 'viewer-preload.cjs'),
                 nodeIntegration: true
