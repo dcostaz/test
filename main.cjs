@@ -217,15 +217,47 @@ let cbzViewerWindow;
  * @returns 
  */
 async function openCbzViewer(record) {
-    const cbzPath = path.join(manga.path, record.hfolder, 'Chapter 1.cbz');
+    /** @type {number} */
+    let chapterNumber = record.hchapter || 1;
+    /** @type {string} */
+    let chapterFileName = `Chapter ${chapterNumber}.cbz`;
+    /** @type {string} */
+    let cbzPath = path.join(manga.path, record.hfolder, chapterFileName);
 
     try {
+        // Check if the initial chapter file exists
         await fs.access(cbzPath);
     } catch (error) {
-        return false;
+        // If it doesn't, try to find the latest chapter in the directory
+        try {
+            const mangaFolderPath = path.join(manga.path, record.hfolder);
+            const files = await fs.readdir(mangaFolderPath);
+            const cbzFiles = files.filter(file => path.extname(file).toLowerCase() === '.cbz');
+
+            if (cbzFiles.length === 0) {
+                console.error(`No .cbz files found in directory: ${mangaFolderPath}`);
+                return false;
+            }
+
+            // Sort files ascending to get the latest chapter
+            cbzFiles.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+            
+            chapterFileName = cbzFiles[0]; // The first item is the latest chapter
+            cbzPath = path.join(mangaFolderPath, chapterFileName);
+        } catch (dirError) {
+            console.error(`Failed to read directory for fallback: ${dirError}`);
+            return false;
+        }
     }
 
     try {
+        // Extract the chapter number from the final, correct filename
+        /** @type {RegExpMatchArray | null} */
+        const match = chapterFileName.match(/(\d+(\.\d+)?)/);
+        if (match) {
+            chapterNumber = /** @type {number} */ Number(match[0]);
+        }
+
         const data = await fs.readFile(cbzPath);
         const zip = await JSZip.loadAsync(data);
         const imagePromises = [];
