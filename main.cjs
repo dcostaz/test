@@ -156,11 +156,11 @@ ipcMain.on('open-review-window', (event) => {
 const fs = require('fs').promises;
 const JSZip = require('jszip');
 
-/** @type {BrowserWindow} */
+/** @type {BrowserWindow|null} */
 let cbzViewerWindow;
-/** @type {mangaHakuneko} */
-let currentViewerRecord;
 
+/** @type {mangaHakuneko|null} */
+let currentViewerRecord;
 
 /**
  * Gets a list of chapter files for a given manga record.
@@ -331,7 +331,7 @@ ipcMain.handle('get-initial-chapter', async (event) => {
     await loadChapter(record, selectedChapter, true);
 });
 
-ipcMain.handle('get-chapter', async (event, { chapterIndex }) => {
+ipcMain.handle('get-chapter', async (event, chapterIndex) => {
     const record = currentViewerRecord;
     if (!record) return;
 

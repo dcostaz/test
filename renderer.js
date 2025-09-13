@@ -150,27 +150,6 @@ window.addEventListener('DOMContentLoaded', async () => {
 
       entries.slice(start, end).forEach(([_, record]) => {
         const colDiv = document.createElement('div');
-
-        colDiv.onclick =
-          /**
-           * Callback for column click. Tries to open CBZ viewer first,
-           * otherwise opens the details modal.
-           * @param {PointerEvent} ev
-           */
-          async (ev) => {
-            const viewerOpened = await window.api.openCbzViewer(record);
-            if (!viewerOpened) {
-              // Fallback to original behavior if no CBZ was opened
-              navigator.clipboard.writeText(record.key)
-                .then(() => {
-                  //openModal(ev, record);
-                })
-                .catch(err => {
-                  alert('Failed to copy: ' + err);
-                });
-            }
-          };
-
         colDiv.className = 'column';
         colDiv.innerHTML = `
           <h4 class="manga-title" title="${record.hmanga || 'No Title'}"${record.id ?? ` style="color: red;"`}>${record.hmanga || 'No Title'}</h4>
@@ -180,22 +159,17 @@ window.addEventListener('DOMContentLoaded', async () => {
                 style="width:160px; height:auto; aspect-ratio: 4/6; object-fit:cover; display:block; margin:0 auto;"
                 onerror="this.onerror=null;this.src='images/manga/placeholder.jpg';">
             <div style="font-size:0.5em; color:#888; margin: 4px 0 8px 0; text-align:center;">
-              ${record.key}
+              <span class="copy_key_placeholder">${record.key}</span>
             </div>
           </div>
           <div class="detail-text" style:"div.custom-paragraph {line-height: .8em;}">
-            <div style="text-align:left; font-size:.9em; font-weight:bold;">ID</div>
-            <div>
-              <span style="text-align:left; font-size:.7em;">
-              ${record.id || '- NA -'}
-              </span>
+            <div style="text-align:left; font-size:.9em; font-weight:bold;">ID
+              <span class="analyze_placeholder" style="text-align:left; font-size:.9em;"></span>
             </div>
             <div style="text-align:left; font-size:.9em; font-weight:bold; margin-top: 5px;">Chapter</div>
             <div>
             <div>
-              <span class="label" style="text-align:center; font-size:.7em;">
-                read
-              </span>
+              <span class="label viewer_placeholder" style="text-align:center; font-size:.7em;"></span>
               <span class="label" style="text-align:center; font-size:.7em;">
                 lchap
               </span>
@@ -243,8 +217,84 @@ window.addEventListener('DOMContentLoaded', async () => {
             </div>
           </div>
         `;
+
+        // Add buttons
+        if (colDiv) {
+          const btn = /** @type {HTMLButtonElement} */ (document.createElement('button'));
+          if (btn) {
+            btn.textContent = 'Copy Key';
+            btn.style = 'font-size:0.5em; color:#888; margin: 0px 0px 0px 0px; text-align:center;';
+            btn.onclick =
+              /**
+               * Callback for column click. Tries to open CBZ viewer first,
+               * otherwise opens the details modal.
+               * @param {PointerEvent} ev
+               */
+              (ev) => {
+                // Fallback to original behavior if no CBZ was opened
+                navigator.clipboard.writeText(record.key)
+                  .catch(err => {
+                    alert('Failed to copy: ' + err);
+                  });
+              }; // btn.onclick
+
+            const span = /** @type {HTMLSpanElement} */ (colDiv.querySelector('.copy_key_placeholder'));
+            if (span) {
+              span.appendChild(document.createTextNode(' ')); // Add space before button
+              span.appendChild(btn);
+            }
+          } // if (btn)
+        } // if (colDiv)
+
+        if (colDiv) {
+          const btn = /** @type {HTMLButtonElement} */ (document.createElement('button'));
+          if (btn) {
+            btn.textContent = 'Analyze '.concat(record.id ? String(record.id) : ' (no ID)');
+            btn.style = 'font-size:0.9em; color:#888; margin: 0px 0px 0px 0px; text-align:center;';
+            btn.onclick =
+              /**
+               * Callback for column click. Tries to open CBZ viewer first,
+               * otherwise opens the details modal.
+               * @param {PointerEvent} ev
+               */
+              async (ev) => {
+                openModal(ev, record);
+              }; // btn.onclick
+
+            const span = /** @type {HTMLSpanElement} */ (colDiv.querySelector('.analyze_placeholder'));
+            if (span) {
+              span.appendChild(document.createTextNode(' ')); // Add space before button
+              span.appendChild(btn);
+            }
+          } // if (btn)
+        } // if (colDiv)  
+
+        if (colDiv) {
+          const btn = /** @type {HTMLButtonElement} */ (document.createElement('button'));
+          if (btn) {
+            btn.textContent = 'read';
+            btn.style = 'font-size:0.7em; color:#888; margin: 0px 0px 0px 0px; text-align:center;';
+            btn.onclick =
+              /**
+               * Callback for column click. Tries to open CBZ viewer first,
+               * otherwise opens the details modal.
+               * @param {PointerEvent} ev
+               */
+              async (ev) => {
+                await window.api.openCbzViewer(record);
+              }; // btn.onclick
+
+            const span = /** @type {HTMLSpanElement} */ (colDiv.querySelector('.viewer_placeholder'));
+            if (span) {
+              span.appendChild(document.createTextNode(' ')); // Add space before button
+              span.appendChild(btn);
+            }
+          } // if (btn)
+        } // if (colDiv)
+
         rowDiv.appendChild(colDiv);
-      });
+
+      }); // entries.slice().forEach
       container.appendChild(rowDiv);
     }
   }
@@ -453,6 +503,11 @@ window.addEventListener('DOMContentLoaded', async () => {
           // Disable the button
           searchIDBtn.disabled = true;
 
+          /**
+           * Search for Manga in MangaUpdates by ID
+           * If Ctrl key is being pressed when the button is clicked, it forces a fresh fetch
+           * @type {MangaUpdatesSeriesResultEntry}
+           */
           const resultEntry = await window.api.searchMangaUpdatesSerieByID(result.record.series_id, !ev.ctrlKey);
 
           // Do something with the entry
@@ -521,7 +576,7 @@ window.addEventListener('DOMContentLoaded', async () => {
           <div class="search-id-results-placeholder"></div>
         `;
 
-      if(sanitizedName(result.record.title) === sanitizedName(hakunekoEntry.hmanga)) {
+      if (sanitizedName(result.record.title) === sanitizedName(hakunekoEntry.hmanga)) {
         const btn = document.createElement('button');
         btn.textContent = 'Resolve';
         btn.onclick = async () => {

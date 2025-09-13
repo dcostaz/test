@@ -1,14 +1,23 @@
 'use strict';
 
 window.addEventListener('DOMContentLoaded', () => {
-    const imageContainer = document.getElementById('image-container');
-    const prevBtn = document.getElementById('prev-chapter');
-    const nextBtn = document.getElementById('next-chapter');
-    const chapterInfo = document.getElementById('chapter-info');
+    const imageContainer = /** @type {HTMLDivElement} */ (document.getElementById('image-container'));
+    const prevBtn = /** @type {HTMLButtonElement} */ (document.getElementById('prev-chapter'));
+    const nextBtn = /** @type {HTMLButtonElement} */ (document.getElementById('next-chapter'));
+    const chapterInfo = /** @type {HTMLSpanElement} */ (document.getElementById('chapter-info'));
 
     let chapterList = [];
     let currentIndex = -1;
 
+    /**
+     * Renders the chapter data in the viewer.
+     *
+     * @param {Object} data - The chapter data to render.
+     * @param {string[]} data.images - The list of image URLs for the chapter.
+     * @param {string} data.chapter - The chapter title.
+     * @param {string[]} data.chapterList - The list of all chapter titles.
+     * @param {number} data.currentIndex - The index of the current chapter.
+     */
     function render(data) {
         // Clear existing images
         imageContainer.innerHTML = '';

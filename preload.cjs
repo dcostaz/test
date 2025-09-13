@@ -65,7 +65,7 @@ api['toggleDevTools'] = () => ipcRenderer.send('toggle-dev-tools');
 /**
  * Open cbz Viewer.
  */
-api['openCbzViewer'] = (record) => ipcRenderer.invoke('open-cbz-if-exists', record);
+api['openCbzViewer'] = (record) => ipcRenderer.invoke('open-cbz-viewer', record);
 
 // Log API Registry
 console.log('IPC API initialized:', api);

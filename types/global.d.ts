@@ -45,25 +45,25 @@ declare global {
 
       openReviewWindow: () => void;
       toggleDevTools: () => void;
-      openCbzViewer: (record: mangaHakuneko) => IpcApiResponse<boolean>;
+      openCbzViewer: (...args: IpcApiArgsOpenCbzViewer) => IpcApiResponse<boolean>;
     },
     viewerAPI: {
-      getInitialChapter: () => Promise<void>;
-      getChapter: (chapterIndex: number) => Promise<void>;
-      onInitialChapterData: (callback: (data: {
-          images: string[];
-          chapter: string;
-          chapterList: string[];
-          currentIndex: number;
-      }) => void) => () => void;
-      onChapterLoaded: (callback: (data: {
-          images: string[];
-          chapter: string;
-          chapterList: string[];
-          currentIndex: number;
-      }) => void) => () => void;
+      getInitialChapter: () => IpcApiResponse<void>;
+      getChapter: (...args: IpcApiArgsGetChapter) => IpcApiResponse<void>;
+      onInitialChapterData: (callback: ChapterDataCallback) => () => void;
+      onChapterLoaded: (callback: ChapterDataCallback) => () => void;
     }
   }
+
+  type ChapterDataCallback = (data: {
+    images: string[];
+    chapter: string;
+    chapterList: string[];
+    currentIndex: number;
+  }) => void;
+
+  type IpcApiArgsOpenCbzViewer = [record: mangaHakuneko];
+  type IpcApiArgsGetChapter = [chapterIndex: number];
 
   /**
    * Callback type for generic IPC events.
