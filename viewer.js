@@ -1,51 +1,23 @@
 'use strict';
 
 window.addEventListener('DOMContentLoaded', () => {
-    const pageImage = /** @type {HTMLImageElement} */ (document.getElementById('page-image'));
-    const pageCounter = /** @type {HTMLSpanElement} */ (document.getElementById('page-counter'));
-    const prevButton = /** @type {HTMLButtonElement} */ (document.getElementById('prev-button'));
-    const nextButton = /** @type {HTMLButtonElement} */ (document.getElementById('next-button'));
+    const imageContainer = document.getElementById('image-container');
 
-    /** @type {string[]} */
-    let images = [];
-    let currentPage = 0;
+    window.viewerAPI.onReceiveCbzImages((event, images) => {
+        // Clear any existing images
+        imageContainer.innerHTML = '';
 
-    // Use the exposed API from the preload script to receive image data
-    window.viewerAPI.onReceiveCbzImages((event, image_data) => {
-        images = image_data;
-        currentPage = 0;
-        updateViewer();
-    });
-
-    function updateViewer() {
-        if (images.length === 0) {
-            pageImage.src = '';
-            pageCounter.textContent = 'No images found';
-            prevButton.disabled = true;
-            nextButton.disabled = true;
+        if (!images || images.length === 0) {
+            imageContainer.textContent = 'No images found.';
             return;
         }
 
-        pageImage.src = images[currentPage];
-        pageCounter.textContent = `Page ${currentPage + 1} / ${images.length}`;
-        prevButton.disabled = currentPage === 0;
-        nextButton.disabled = currentPage >= images.length - 1;
-    }
-
-    prevButton.addEventListener('click', () => {
-        if (currentPage > 0) {
-            currentPage--;
-            updateViewer();
-        }
+        // Create and append an img element for each image
+        images.forEach(imageSrc => {
+            const img = document.createElement('img');
+            img.src = imageSrc;
+            img.alt = 'Manga Page';
+            imageContainer.appendChild(img);
+        });
     });
-
-    nextButton.addEventListener('click', () => {
-        if (currentPage < images.length - 1) {
-            currentPage++;
-            updateViewer();
-        }
-    });
-
-    // Initial state
-    updateViewer();
 });
