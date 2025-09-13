@@ -103,12 +103,6 @@ const ipcDataRegistry = {
         },
         requiresResponse: true,
         returnType: "MangaUpdatesSearchSeriesResultEntry[]"
-    },
-    'open-cbz-if-exists': {
-        log: true,
-        name: 'openCbzIfExists',
-        requiresResponse: true,
-        returnType: "boolean"
     }
 };
 

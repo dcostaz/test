@@ -158,12 +158,12 @@ window.addEventListener('DOMContentLoaded', async () => {
            * @param {PointerEvent} ev
            */
           async (ev) => {
-            const viewerOpened = await window.api.openCbzIfExists(record);
+            const viewerOpened = await window.api.openCbzViewer(record);
             if (!viewerOpened) {
               // Fallback to original behavior if no CBZ was opened
               navigator.clipboard.writeText(record.key)
                 .then(() => {
-                  openModal(ev, record);
+                  //openModal(ev, record);
                 })
                 .catch(err => {
                   alert('Failed to copy: ' + err);
@@ -534,7 +534,7 @@ window.addEventListener('DOMContentLoaded', async () => {
           container.innerHTML = ''; // Clear existing records
         }; // btn.onclick
 
-        const span = colDiv.querySelector('.has-title');
+        const span = /** @type {HTMLSpanElement} */ (colDiv.querySelector('.has-title'));
         span.appendChild(document.createTextNode(' ')); // Add space before button
         span.appendChild(btn);
       }

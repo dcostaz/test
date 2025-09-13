@@ -1,6 +1,7 @@
 // tsconfig.json
 {
   "compilerOptions": {
+    "outDir": "./dist",
     "checkJs": true,
     "allowJs": true,
     "baseUrl": ".",

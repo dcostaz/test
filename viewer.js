@@ -1,16 +1,17 @@
 'use strict';
 
 window.addEventListener('DOMContentLoaded', () => {
-    const pageImage = document.getElementById('page-image');
-    const pageCounter = document.getElementById('page-counter');
-    const prevButton = document.getElementById('prev-button');
-    const nextButton = document.getElementById('next-button');
+    const pageImage = /** @type {HTMLImageElement} */ (document.getElementById('page-image'));
+    const pageCounter = /** @type {HTMLSpanElement} */ (document.getElementById('page-counter'));
+    const prevButton = /** @type {HTMLButtonElement} */ (document.getElementById('prev-button'));
+    const nextButton = /** @type {HTMLButtonElement} */ (document.getElementById('next-button'));
 
+    /** @type {string[]} */
     let images = [];
     let currentPage = 0;
 
     // Use the exposed API from the preload script to receive image data
-    window.electronAPI.onReceiveCbzImages((event, image_data) => {
+    window.viewerAPI.onReceiveCbzImages((event, image_data) => {
         images = image_data;
         currentPage = 0;
         updateViewer();

@@ -36,8 +36,7 @@ const createWindow = () => {
             icon: path.join(__dirname, 'icon.png'),
             webPreferences: {
                 preload: preloadPath,
-                nodeIntegration: false,
-                contextIsolation: true
+                nodeIntegration: true
             }
         });
 
@@ -73,8 +72,7 @@ function openReviewWindow() {
             title: 'Review Unmatched Series',
             webPreferences: {
                 preload: preloadPath,
-                nodeIntegration: false,
-                contextIsolation: true
+                nodeIntegration: true
             }
         });
 
@@ -110,12 +108,10 @@ function toggleDevTools() {
     if (win) win.webContents.toggleDevTools();
 }
 
-app.whenReady().then(() => {
+app.on('ready', async () => {
     globalShortcut.register('CommandOrControl+Shift+I', toggleDevTools);
     globalShortcut.register('F12', toggleDevTools);
-});
 
-app.on('ready', async () => {
     try {
         manga = await Manga.init();
     } catch (error) {
@@ -211,10 +207,17 @@ ipcMain.on('open-review-window', (event) => {
 
 const fs = require('fs').promises;
 const JSZip = require('jszip');
+
+/** @type {BrowserWindow} */
 let cbzViewerWindow;
 
+/**
+ * Opens the CBZ viewer for the specified manga record.
+ * @param {mangaHakuneko} record 
+ * @returns 
+ */
 async function openCbzViewer(record) {
-    const cbzPath = path.join(manga.path, record.hfolder, `${record.hfolder}.cbz`);
+    const cbzPath = path.join(manga.path, record.hfolder, 'Chapter 1.cbz');
 
     try {
         await fs.access(cbzPath);
@@ -247,8 +250,7 @@ async function openCbzViewer(record) {
             title: `CBZ Viewer - ${record.hmanga}`,
             webPreferences: {
                 preload: path.join(__dirname, 'viewer-preload.cjs'),
-                nodeIntegration: false,
-                contextIsolation: true,
+                nodeIntegration: true
             }
         });
 

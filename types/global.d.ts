@@ -45,7 +45,11 @@ declare global {
 
       openReviewWindow: () => void;
       toggleDevTools: () => void;
-    };
+      openCbzViewer: (record: mangaHakuneko) => IpcApiResponse<boolean>;
+    },
+    viewerAPI:{
+      onReceiveCbzImages: (callback: (event: Electron.IpcRendererEvent, images: string[]) => void) => () => void;
+    }
   }
 
   /**
