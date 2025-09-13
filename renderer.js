@@ -153,19 +153,22 @@ window.addEventListener('DOMContentLoaded', async () => {
 
         colDiv.onclick =
           /**
-           * Callback for search ID button click.
+           * Callback for column click. Tries to open CBZ viewer first,
+           * otherwise opens the details modal.
            * @param {PointerEvent} ev
            */
-          (ev) => {
-            navigator.clipboard.writeText(record.key)
-              .then(() => {
-                // Optionally, show a confirmation (e.g., toast or alert)
-                // alert('Copied to clipboard!');
-                openModal(ev, record);
-              })
-              .catch(err => {
-                alert('Failed to copy: ' + err);
-              });
+          async (ev) => {
+            const viewerOpened = await window.api.openCbzIfExists(record);
+            if (!viewerOpened) {
+              // Fallback to original behavior if no CBZ was opened
+              navigator.clipboard.writeText(record.key)
+                .then(() => {
+                  openModal(ev, record);
+                })
+                .catch(err => {
+                  alert('Failed to copy: ' + err);
+                });
+            }
           };
 
         colDiv.className = 'column';

@@ -36,6 +36,7 @@
     "axios": "^1.11.0",
     "levenshtein-edit-distance": "^3.0.1",
     "lodash": "^4.17.21",
+    "jszip": "^3.10.1",
     "lowdb": "^7.0.1",
     "rater-js": "^1.0.1",
     "redis": "^5.6.0",
