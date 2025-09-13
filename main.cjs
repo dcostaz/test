@@ -3,7 +3,7 @@ const __root = require('app-root-path').path;
 const path = require('path');
 const Enums = require(path.join(__root, 'enums', 'mangalist.cjs'));
 
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const { setupIpcEvents } = require('./setupIpc.cjs');
 
 const fsExists = require('fs').existsSync; // Use existsSync for synchronous check
@@ -244,15 +244,20 @@ async function openCbzViewer(record) {
 
         const images = await Promise.all(imagePromises);
 
+        const primaryDisplay = screen.getPrimaryDisplay();
+        const { width, height } = primaryDisplay.workAreaSize;
+
         cbzViewerWindow = new BrowserWindow({
             width: 800,
-            height: 600,
+            height: height,
             title: `CBZ Viewer - ${record.hmanga}`,
             webPreferences: {
                 preload: path.join(__dirname, 'viewer-preload.cjs'),
                 nodeIntegration: true
             }
         });
+
+        //cbzViewerWindow.maximize();
 
         cbzViewerWindow.loadFile('viewer.html');
 
