@@ -206,3 +206,63 @@ ipcMain.on('open-review-window', (event) => {
         event.sender.send('open-review-window-failed');
     }
 });
+
+const fs = require('fs').promises;
+const JSZip = require('jszip');
+let cbzViewerWindow;
+
+async function openCbzViewer(record) {
+    const cbzPath = path.join(manga.path, record.hfolder, `${record.hfolder}.cbz`);
+
+    try {
+        await fs.access(cbzPath);
+    } catch (error) {
+        return false;
+    }
+
+    try {
+        const data = await fs.readFile(cbzPath);
+        const zip = await JSZip.loadAsync(data);
+        const imagePromises = [];
+        const sortedFiles = Object.keys(zip.files).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+
+        for (const fileName of sortedFiles) {
+            const file = zip.files[fileName];
+            if (!file.dir && /\.(jpg|jpeg|png|gif)$/i.test(fileName)) {
+                const promise = file.async('base64').then(base64 => {
+                    const extension = path.extname(fileName).substring(1);
+                    return `data:image/${extension};base64,${base64}`;
+                });
+                imagePromises.push(promise);
+            }
+        }
+
+        const images = await Promise.all(imagePromises);
+
+        cbzViewerWindow = new BrowserWindow({
+            width: 800,
+            height: 600,
+            title: `CBZ Viewer - ${record.hmanga}`,
+            webPreferences: {
+                preload: path.join(__dirname, 'viewer-preload.cjs'),
+                nodeIntegration: false,
+                contextIsolation: true,
+            }
+        });
+
+        cbzViewerWindow.loadFile('viewer.html');
+
+        cbzViewerWindow.webContents.on('did-finish-load', () => {
+            cbzViewerWindow.webContents.send('receive-cbz-images', images);
+        });
+
+        return true;
+    } catch (error) {
+        console.error(`Failed to open or process CBZ file at ${cbzPath}:`, error);
+        return false;
+    }
+}
+
+ipcMain.handle('open-cbz-if-exists', (event, record) => {
+    return openCbzViewer(record);
+});
