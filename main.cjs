@@ -122,58 +122,6 @@ app.on('ready', async () => {
     // Setup Ipc Handling
     setupIpcEvents(manga);
 
-    /*
-    const mangalistSettings = manga.settings.mangalist;
-
-    if (!mangalistSettings) {
-        console.error('Failed to initialize MangaList.');
-        app.quit();
-        return; // Exit if initialization fails
-    }
-
-        await manga.updateDirectories([]);
-    
-        //await mangalist.refreshReadingList();
-    
-        const changed = await manga.getModifiedDirectories();
-    
-        const settings = manga.settings.mangalist;
-    
-        const set = manga.settings;
-    
-        const dir = manga.mangaDirectories();
-    
-        await manga.updateDirectories(changed);
-    
-        //const mangapath = await mangalist.manga.path();
-    
-        //const direc = mangalist.manga.directories;
-    
-        app.quit();
-    
-    
-        // Load the data and directories
-        if (!await init())
-            app.quit();
-    
-        // Load manga updates reading list
-        if (!await getMangaUpdatesReadingList(temp))
-            app.quit();
-    
-        await addNewSeries(temp, db);
-    
-        // Exit if no Manga series are found
-        if (!db.data.mangaupdatesreadinglist || !db.data.mangaupdatesreadinglist.length) {
-            console.log('Could not load manga series.');
-            app.quit();
-        }
-    
-        await syncUserRating(temp, db);
-    
-        await rebuildHakunekoList(temp, db);
-    
-        await sendHakunekoChapterUpdatesToMangaUpdates(db);
-    */
     createWindow();
 });
 
@@ -210,54 +158,46 @@ const JSZip = require('jszip');
 
 /** @type {BrowserWindow} */
 let cbzViewerWindow;
+/** @type {mangaHakuneko} */
+let currentViewerRecord;
+
 
 /**
- * Opens the CBZ viewer for the specified manga record.
- * @param {mangaHakuneko} record 
- * @returns 
+ * Gets a list of chapter files for a given manga record.
+ * @param {mangaHakuneko} record - The manga record.
+ * @returns {Promise<string[]>} A promise that resolves with a sorted list of chapter filenames.
  */
-async function openCbzViewer(record) {
-    /** @type {number} */
-    let chapterNumber = record.hchapter || 1;
-    /** @type {string} */
-    let chapterFileName = `Chapter ${chapterNumber}.cbz`;
-    /** @type {string} */
+async function getChapterList(record) {
+    try {
+        const mangaFolderPath = path.join(manga.path, record.hfolder);
+        const files = await fs.readdir(mangaFolderPath);
+        const cbzFiles = files.filter(file => path.extname(file).toLowerCase() === '.cbz');
+
+        if (cbzFiles.length === 0) {
+            console.error(`No .cbz files found in directory: ${mangaFolderPath}`);
+            return [];
+        }
+
+        // Sort files ascending to get the chapters in order
+        cbzFiles.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+
+        return cbzFiles;
+    } catch (dirError) {
+        console.error(`Failed to read directory for chapters: ${dirError}`);
+        return [];
+    }
+}
+
+/**
+ * Gets the data for a specific chapter.
+ * @param {mangaHakuneko} record - The manga record.
+ * @param {string} chapterFileName - The filename of the chapter to load.
+ * @returns {Promise<{images: string[], chapter: string} | null>}
+ */
+async function getChapterData(record, chapterFileName) {
     let cbzPath = path.join(manga.path, record.hfolder, chapterFileName);
 
     try {
-        // Check if the initial chapter file exists
-        await fs.access(cbzPath);
-    } catch (error) {
-        // If it doesn't, try to find the latest chapter in the directory
-        try {
-            const mangaFolderPath = path.join(manga.path, record.hfolder);
-            const files = await fs.readdir(mangaFolderPath);
-            const cbzFiles = files.filter(file => path.extname(file).toLowerCase() === '.cbz');
-
-            if (cbzFiles.length === 0) {
-                console.error(`No .cbz files found in directory: ${mangaFolderPath}`);
-                return false;
-            }
-
-            // Sort files ascending to get the latest chapter
-            cbzFiles.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
-            
-            chapterFileName = cbzFiles[0]; // The first item is the latest chapter
-            cbzPath = path.join(mangaFolderPath, chapterFileName);
-        } catch (dirError) {
-            console.error(`Failed to read directory for fallback: ${dirError}`);
-            return false;
-        }
-    }
-
-    try {
-        // Extract the chapter number from the final, correct filename
-        /** @type {RegExpMatchArray | null} */
-        const match = chapterFileName.match(/(\d+(\.\d+)?)/);
-        if (match) {
-            chapterNumber = /** @type {number} */ Number(match[0]);
-        }
-
         const data = await fs.readFile(cbzPath);
         const zip = await JSZip.loadAsync(data);
         const imagePromises = [];
@@ -276,34 +216,128 @@ async function openCbzViewer(record) {
 
         const images = await Promise.all(imagePromises);
 
-        const primaryDisplay = screen.getPrimaryDisplay();
-        const { width, height } = primaryDisplay.workAreaSize;
+        return {
+            images: images,
+            chapter: chapterFileName
+        };
 
-        cbzViewerWindow = new BrowserWindow({
-            width: 800,
-            height: height,
-            title: `CBZ Viewer - Chapter ${chapterNumber}`,
-            webPreferences: {
-                preload: path.join(__dirname, 'viewer-preload.cjs'),
-                nodeIntegration: true
-            }
-        });
-
-        //cbzViewerWindow.maximize();
-
-        cbzViewerWindow.loadFile('viewer.html');
-
-        cbzViewerWindow.webContents.on('did-finish-load', () => {
-            cbzViewerWindow.webContents.send('receive-cbz-images', images);
-        });
-
-        return true;
     } catch (error) {
         console.error(`Failed to open or process CBZ file at ${cbzPath}:`, error);
-        return false;
+        return null;
     }
 }
 
-ipcMain.handle('open-cbz-if-exists', (event, record) => {
-    return openCbzViewer(record);
+
+/**
+ * Loads a specific chapter and sends the images to the viewer window.
+ * @param {mangaHakuneko} record - The manga record.
+ * @param {string} chapterFileName - The filename of the chapter to load.
+ * @param {boolean} isInitial - Whether this is the initial load.
+ * @returns {Promise<boolean>}
+ */
+async function loadChapter(record, chapterFileName, isInitial = false) {
+    const chapterData = await getChapterData(record, chapterFileName);
+    const chapterList = await getChapterList(record);
+    const currentIndex = chapterList.indexOf(chapterFileName);
+
+    if (chapterData && cbzViewerWindow) {
+        let chapterNumber = '';
+        const match = chapterFileName.match(/(\d+(\.\d+)?)/);
+        if (match) {
+            chapterNumber = match[0];
+        }
+        cbzViewerWindow.setTitle(`CBZ Viewer - Chapter ${chapterNumber}`);
+
+        const payload = {
+            ...chapterData,
+            currentIndex: currentIndex,
+            chapterList: chapterList,
+        };
+
+        const channel = isInitial ? 'initial-chapter-data' : 'chapter-loaded';
+        cbzViewerWindow.webContents.send(channel, payload);
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Opens the CBZ viewer window.
+ */
+function openCbzViewer() {
+    if (cbzViewerWindow && !cbzViewerWindow.isDestroyed()) {
+        cbzViewerWindow.focus();
+        return;
+    }
+
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const { height } = primaryDisplay.workAreaSize;
+
+    cbzViewerWindow = new BrowserWindow({
+        width: 800,
+        height: height,
+        title: 'CBZ Viewer',
+        webPreferences: {
+            preload: path.join(__dirname, 'viewer-preload.cjs'),
+            nodeIntegration: true
+        }
+    });
+
+    cbzViewerWindow.loadFile('viewer.html');
+
+    cbzViewerWindow.on('closed', () => {
+        cbzViewerWindow = null;
+        currentViewerRecord = null;
+    });
+}
+
+ipcMain.handle('open-cbz-viewer', (event, record) => {
+    currentViewerRecord = record;
+    openCbzViewer();
+});
+
+ipcMain.handle('get-initial-chapter', async (event) => {
+    const record = currentViewerRecord;
+    if (!record) return;
+
+    const chapterList = await getChapterList(record);
+    if (chapterList.length === 0) {
+        // TODO: Send error message to viewer
+        return;
+    }
+
+    let selectedChapter;
+    // 1. Try to find hchapter
+    if (record.hchapter) {
+        const hchapterFile = `Chapter ${record.hchapter}.cbz`;
+        if (chapterList.includes(hchapterFile)) {
+            selectedChapter = hchapterFile;
+        }
+    }
+
+    // 2. If not found, try Chapter 1
+    if (!selectedChapter) {
+        const chapter1File = 'Chapter 1.cbz';
+        if (chapterList.includes(chapter1File)) {
+            selectedChapter = chapter1File;
+        }
+    }
+
+    // 3. If still not found, take the first chapter
+    if (!selectedChapter) {
+        selectedChapter = chapterList[0];
+    }
+
+    await loadChapter(record, selectedChapter, true);
+});
+
+ipcMain.handle('get-chapter', async (event, { chapterIndex }) => {
+    const record = currentViewerRecord;
+    if (!record) return;
+
+    const chapterList = await getChapterList(record);
+    if (chapterList.length > chapterIndex && chapterIndex >= 0) {
+        const chapterFileName = chapterList[chapterIndex];
+        await loadChapter(record, chapterFileName);
+    }
 });

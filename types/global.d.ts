@@ -47,8 +47,21 @@ declare global {
       toggleDevTools: () => void;
       openCbzViewer: (record: mangaHakuneko) => IpcApiResponse<boolean>;
     },
-    viewerAPI:{
-      onReceiveCbzImages: (callback: (event: Electron.IpcRendererEvent, images: string[]) => void) => () => void;
+    viewerAPI: {
+      getInitialChapter: () => Promise<void>;
+      getChapter: (chapterIndex: number) => Promise<void>;
+      onInitialChapterData: (callback: (data: {
+          images: string[];
+          chapter: string;
+          chapterList: string[];
+          currentIndex: number;
+      }) => void) => () => void;
+      onChapterLoaded: (callback: (data: {
+          images: string[];
+          chapter: string;
+          chapterList: string[];
+          currentIndex: number;
+      }) => void) => () => void;
     }
   }
 
