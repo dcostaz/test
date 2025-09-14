@@ -39,10 +39,23 @@ html, body {
 
 #navigation-bar button {
     color: #fff;
-    background: none;
-    border: none;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    padding: 5px 10px;
     font-size: 1em;
     cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#navigation-bar button:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+#navigation-bar button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: rgba(255, 255, 255, 0.1); /* Keep background consistent */
 }
 
 #chapter-info {
