@@ -4,6 +4,8 @@ window.addEventListener('DOMContentLoaded', () => {
     const imageContainer = /** @type {HTMLDivElement} */ (document.getElementById('image-container'));
     const prevBtn = /** @type {HTMLButtonElement} */ (document.getElementById('prev-chapter'));
     const nextBtn = /** @type {HTMLButtonElement} */ (document.getElementById('next-chapter'));
+    const zoomInBtn = /** @type {HTMLButtonElement} */ (document.getElementById('zoom-in'));
+    const zoomOutBtn = /** @type {HTMLButtonElement} */ (document.getElementById('zoom-out'));
     const chapterInfo = /** @type {HTMLSpanElement} */ (document.getElementById('chapter-info'));
     const chapterListElement = /** @type {HTMLUListElement} */ (document.getElementById('chapter-list'));
 
@@ -12,6 +14,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     /** @type {number} */
     let currentIndex = -1;
+    let zoom = 100;
 
     /**
      * Renders the chapter data in the viewer.
@@ -37,6 +40,7 @@ window.addEventListener('DOMContentLoaded', () => {
             const img = document.createElement('img');
             img.src = imageSrc;
             img.alt = 'Manga Page';
+            img.style.width = `${zoom}%`;
             imageContainer.appendChild(img);
         });
 
@@ -122,6 +126,28 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Next Chapter Button event listeners
     nextBtn.addEventListener('click', nextChapter);
+
+    /**
+     * Updates the zoom level of the images.
+     * @param {number} newZoom - The new zoom level.
+     */
+    function updateZoom(newZoom) {
+        zoom = Math.max(70, Math.min(130, newZoom)); // Clamp zoom between 70 and 130
+        const images = imageContainer.querySelectorAll('img');
+        images.forEach(img => {
+            img.style.width = `${zoom}%`;
+        });
+    }
+
+    // Zoom In Button event listener
+    zoomInBtn.addEventListener('click', () => {
+        updateZoom(zoom + 5);
+    });
+
+    // Zoom Out Button event listener
+    zoomOutBtn.addEventListener('click', () => {
+        updateZoom(zoom - 5);
+    });
 
     // Keyboard navigation
     document.addEventListener('keydown', (event) => {
