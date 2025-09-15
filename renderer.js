@@ -1,41 +1,34 @@
 // renderer.js
 'use strict';
 
-window.addEventListener('DOMContentLoaded', async () => {
-  let hakuneko = await window.api.getHakunekoReadingList();
-  const container = /** @type {HTMLDivElement} */ (document.getElementById('records-container'));
+/**
+ * Helper function
+ * @param {string} input
+ */
+function convertChaptersTextToHtml(input) {
+  input = String(input);
 
-  /** @type {string} */
-  let filterLetter = ''; // e.g., set window.filterLetter = 'A' to filter by 'A'
+  const lines = input.trim().split('\n').map(line => line.trim()).filter(line => line);
 
-  /** 
-   * Helper function
-   * @param {string} input
-   */
-  function convertChaptersTextToHtml(input) {
-    input = String(input);
+  const [headline, ...seasonLines] = lines;
 
-    const lines = input.trim().split('\n').map(line => line.trim()).filter(line => line);
+  const seasonItems = seasonLines.map(line => {
+    // Step 1: Replace escaped tilde (\\~) with placeholder
+    let cleanLine = line.replace(/\\~/g, '__TILDE__');
 
-    const [headline, ...seasonLines] = lines;
+    // Step 2: Replace normal tilde (~) with en dash
+    cleanLine = cleanLine.replace(/~/g, '&ndash;');
 
-    const seasonItems = seasonLines.map(line => {
-      // Step 1: Replace escaped tilde (\\~) with placeholder
-      let cleanLine = line.replace(/\\~/g, '__TILDE__');
+    // Step 3: Restore literal tildes
+    cleanLine = cleanLine.replace(/__TILDE__/g, '~');
 
-      // Step 2: Replace normal tilde (~) with en dash
-      cleanLine = cleanLine.replace(/~/g, '&ndash;');
+    // Optional: bold the season label (S1, S2, etc.)
+    cleanLine = cleanLine.replace(/^(\w+):/, '<strong>$1:</strong>');
 
-      // Step 3: Restore literal tildes
-      cleanLine = cleanLine.replace(/__TILDE__/g, '~');
+    return `<li>${cleanLine}</li>`;
+  });
 
-      // Optional: bold the season label (S1, S2, etc.)
-      cleanLine = cleanLine.replace(/^(\w+):/, '<strong>$1:</strong>');
-
-      return `<li>${cleanLine}</li>`;
-    });
-
-    return `
+  return `
     <section>
       <span>${headline}</span>
       <span>
@@ -43,8 +36,140 @@ window.addEventListener('DOMContentLoaded', async () => {
       </span>
     </section>
   `.trim();
-  }
+}
 
+class MangaColumn {
+    static _template = null;
+
+    static async _loadTemplate() {
+        if (this._template === null) {
+            try {
+                const fileUrl = new URL('./mangahakunekoentry.html', window.location.href).href;
+                const response = await fetch(fileUrl);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch template: ${response.statusText}`);
+                }
+                this._template = await response.text();
+            } catch (error) {
+                console.error('Failed to load MangaColumn template:', error);
+                this._template = '<div style="color:red;">Failed to load manga template.</div>';
+            }
+        }
+        return this._template;
+    }
+
+    constructor(record) {
+        this.record = record;
+        this.element = document.createElement('div');
+        this.element.id = `${this.record.key}`;
+        this.element.className = 'column';
+    }
+
+    async _getImageData() {
+        let mangaImageData = 'images/manga/placeholder.jpg';
+        if (this.record.himageAvailable) {
+            const image = await window.api.getMangaImage(this.record.key.concat('.jpg'));
+            if (image) {
+                mangaImageData = image;
+            }
+        }
+        return mangaImageData;
+    }
+
+    _addButtons() {
+        if (this.element) {
+            const btn = /** @type {HTMLButtonElement} */ (document.createElement('button'));
+            if (btn) {
+                btn.textContent = 'Copy Key';
+                btn.style = 'font-size:0.5em; color:#888; margin: 0px 0px 0px 0px; text-align:center;';
+                btn.onclick = (ev) => {
+                    navigator.clipboard.writeText(this.record.key)
+                        .catch(err => {
+                            alert('Failed to copy: ' + err);
+                        });
+                };
+
+                const span = /** @type {HTMLSpanElement} */ (this.element.querySelector('.copy_key_placeholder'));
+                if (span) {
+                    span.appendChild(document.createTextNode(' '));
+                    span.appendChild(btn);
+                }
+            }
+        }
+
+        if (this.element && !(this.record.id ? true : false)) {
+            const btn = /** @type {HTMLButtonElement} */ (document.createElement('button'));
+            if (btn) {
+                btn.textContent = 'Search MangaUpdates for Match';
+                btn.style = 'font-size:0.7em; color:#888; margin: 0px 0px 0px 0px; text-align:center;';
+                btn.onclick = async (ev) => {
+                    openModal(ev, this.record);
+                };
+
+                const span = /** @type {HTMLSpanElement} */ (this.element.querySelector('.analyze_placeholder'));
+                if (span) {
+                    span.appendChild(document.createTextNode('  '));
+                    span.appendChild(btn);
+                }
+            }
+        }
+
+        if (this.element) {
+            const btn = /** @type {HTMLButtonElement} */ (document.createElement('button'));
+            if (btn) {
+                btn.textContent = '>';
+                btn.style = 'font-size:0.7em; color:#888; margin: 0px 0px 0px 0px; text-align:center;';
+                btn.onclick = async (ev) => {
+                    /** @type {HTMLDivElement} */
+                    (document.getElementById('block-modal')).style = '';
+                    await window.api.openCbzViewer(this.record);
+                };
+
+                const span = /** @type {HTMLSpanElement} */ (this.element.querySelector('.viewer_placeholder'));
+                if (span) {
+                    span.appendChild(document.createTextNode(' '));
+                    span.appendChild(btn);
+                }
+            }
+        }
+    }
+
+    async render() {
+        const template = await MangaColumn._loadTemplate();
+        const mangaImageData = await this._getImageData();
+
+        const templateData = {
+            'record.hmanga_or_notitle': this.record.hmanga || 'No Title',
+            'record.style_if_no_id': !this.record.id ? 'style="color: red;"' : '',
+            'mangaImageData': mangaImageData,
+            'record.key': this.record.key,
+            'record.id_or_empty': this.record.id ? String(this.record.id) : '',
+            'record.hchapter_or_na': this.record.hchapter || '- NA -',
+            'record.hlastchapter_or_0': this.record.hlastchapter !== null ? this.record.hlastchapter : 0,
+            'record.lastChapter_or_na': this.record.lastChapter || '- NA - ',
+            'record.type_or_na': this.record.type || '- NA -',
+            'record.year_or_na': this.record.year || '- NA -',
+            'record.completed_status': this.record.completed === true ? 'Yes' : this.record.completed === false ? 'No' : '- NA -',
+            'record.status_html': this.record.status !== undefined && this.record.status !== null ? convertChaptersTextToHtml(this.record.status) : '- NA -'
+        };
+
+        let html = template;
+        for (const [key, value] of Object.entries(templateData)) {
+            html = html.replace(new RegExp(`{{${key}}}`, 'g'), value);
+        }
+
+        this.element.innerHTML = html;
+        this._addButtons();
+        return this.element;
+    }
+}
+
+window.addEventListener('DOMContentLoaded', async () => {
+  let hakuneko = await window.api.getHakunekoReadingList();
+  const container = /** @type {HTMLDivElement} */ (document.getElementById('records-container'));
+
+  /** @type {string} */
+  let filterLetter = ''; // e.g., set window.filterLetter = 'A' to filter by 'A'
 
   function refreshLetters() {
     // Set the default filter letter if none is set
@@ -73,7 +198,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   /**
    * Updates the filter letter for the manga list.
-   * @param {string} letter 
+   * @param {string} letter
    */
   function updateData(letter = '#') {
     // Update the filter letter
@@ -89,7 +214,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   /**
    * Renders the manga entries.
-   * @param {number} page 
+   * @param {number} page
    */
   async function renderMangas(page = 1) {
     // Render 7 objects per row, max 300 rows (2,100 objects)
@@ -121,24 +246,6 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     const maxRows = 100;
     const itemsPerRow = 7;
-    const maxItems = maxRows * itemsPerRow;
-    let mangahakunekoTemplate = '';
-
-    const fileUrl = new URL('./mangahakunekoentry.html', window.location.href).href;
-    await fetch(fileUrl)
-      .then((res) => {
-        //console.log('Status:', res.status);
-        //console.log('Content-Type:', res.headers.get('Content-Type'));
-        return res.text();
-      })
-      .then((text) => {
-        mangahakunekoTemplate = text;
-        //console.log('Fetched HTML:', text.length ? text : '[EMPTY]');
-      })
-      .catch((err) => {
-        mangahakunekoTemplate = '<span style="color:red;">Failed to load content</span>';
-        console.error('Fetch error:', err);
-      });
 
     for (let row = 0; row < maxRows; row++) {
       const start = row * itemsPerRow;
@@ -149,169 +256,11 @@ window.addEventListener('DOMContentLoaded', async () => {
       rowDiv.className = 'row';
 
       entries.slice(start, end).forEach(async ([_, record]) => {
-        // Load manga image
-        let mangaImageData = 'images/manga/placeholder.jpg';
-        if (record.himageAvailable) {
-          const image = await window.api.getMangaImage(record.key.concat('.jpg'));
-          if (image) {
-            mangaImageData = image;
-          }
-        }
-
-        const colDiv = document.createElement('div');
-        colDiv.id = `${record.key}`;
-        colDiv.className = 'column';
-        colDiv.innerHTML = `
-          <h4 class="manga-title" title="${record.hmanga || 'No Title'}"${record.id ?? ` style="color: red;"`}>${record.hmanga || 'No Title'}</h4>
-          <div class="detail-image">
-            <img src="${mangaImageData}" 
-                alt="Cover" 
-                style="width:160px; height:auto; aspect-ratio: 4/6; object-fit:cover; display:block; margin:0 auto;"
-                onerror="this.onerror=null;this.src='images/manga/placeholder.jpg';">
-            <div style="font-size:0.5em; color:#888; margin: 4px 0 8px 0; text-align:center;">
-              <span class="copy_key_placeholder">${record.key}</span>
-            </div>
-          </div>
-          <div class="detail-text" style:"div.custom-paragraph {line-height: .8em;}">
-            <div style="text-align:left; font-size:.9em; font-weight:bold;">ID
-              <span class="analyze_placeholder" style="text-align:left; font-size:.9em;">${record.id ? String(record.id) : ''}</span>
-            </div>
-            <div style="text-align:left; font-size:.9em; font-weight:bold; margin-top: 5px;">Chapter</div>
-            <div>
-            <div>
-              <span class="label" style="text-align:center; font-size:.7em;">
-                read
-              </span>
-              <span class="label-chapter" style="text-align:center; font-size:.7em;">
-              </span>
-              <span class="label" style="text-align:center; font-size:.7em;">
-                lchap
-              </span>
-              <span class="label" style="text-align:center; font-size:.7em;">
-                mupdts
-              </span>
-            </div>
-              <span id="current-chapter" class="label" style="text-align:right; font-size:.7em;">
-                ${record.hchapter || '- NA -'}
-              </span>
-              <span id="current-chapter" class="label-chapter viewer_placeholder" style="text-align:left; font-size:.7em;">
-              </span>
-              <span class="label" style="text-align:center; font-size:.7em;">
-                ${record.hlastchapter !== null ? record.hlastchapter : 0}
-              </span>
-              <span class="label" style="text-align:center; font-size:.7em;">
-                ${(record.lastChapter || '- NA - ')}
-              </span>
-            </div>
-            <div style="text-align:left; font-size:.9em; font-weight:bold; margin-top: 5px;">
-              <span class="label-section-header" style="text-align:left;">
-                Type
-              </span>
-              <span class="label-section-header" style="text-align:left;">
-                Year
-              </span>
-            </div>
-            <div>
-              <span class="label-type" style="text-align:left; font-size:.7em;">
-              ${record.type || '- NA -'}
-              </span>
-              <span class="label-year" style="text-align:left; font-size:.7em;">
-              ${record.year || '- NA -'}
-              </span>
-            </div>
-            <div style="text-align:left; font-size:.9em; font-weight:bold; margin-top: 5px;">Completely Scanlated?</div>
-            <div>
-              <span style="text-align:left; font-size:.7em;">
-              ${record.completed === true ? 'Yes' : record.completed === false ? 'No' : '- NA -'}
-              </span>
-            </div>
-            <div style="text-align:left; font-size:.9em; font-weight:bold; margin-top: 5px;">Status in Country of Origin</div>
-            <div>
-              <span style="text-align:left; font-size:.6em;">
-              ${record.status !== undefined && record.status !== null ? convertChaptersTextToHtml(record.status) : '- NA -'}
-              </span>
-            </div>
-          </div>
-        `;
-
-        // Add buttons
-        if (colDiv) {
-          const btn = /** @type {HTMLButtonElement} */ (document.createElement('button'));
-          if (btn) {
-            btn.textContent = 'Copy Key';
-            btn.style = 'font-size:0.5em; color:#888; margin: 0px 0px 0px 0px; text-align:center;';
-            btn.onclick =
-              /**
-               * Callback for column click. Tries to open CBZ viewer first,
-               * otherwise opens the details modal.
-               * @param {PointerEvent} ev
-               */
-              (ev) => {
-                // Fallback to original behavior if no CBZ was opened
-                navigator.clipboard.writeText(record.key)
-                  .catch(err => {
-                    alert('Failed to copy: ' + err);
-                  });
-              }; // btn.onclick
-
-            const span = /** @type {HTMLSpanElement} */ (colDiv.querySelector('.copy_key_placeholder'));
-            if (span) {
-              span.appendChild(document.createTextNode(' ')); // Add space before button
-              span.appendChild(btn);
-            }
-          } // if (btn)
-        } // if (colDiv)
-
-        if (colDiv && !(record.id ? true : false)) {
-          const btn = /** @type {HTMLButtonElement} */ (document.createElement('button'));
-          if (btn) {
-            btn.textContent = 'Search MangaUpdates for Match';
-            btn.style = 'font-size:0.7em; color:#888; margin: 0px 0px 0px 0px; text-align:center;';
-            btn.onclick =
-              /**
-               * Callback for column click. Tries to open CBZ viewer first,
-               * otherwise opens the details modal.
-               * @param {PointerEvent} ev
-               */
-              async (ev) => {
-                openModal(ev, record);
-              }; // btn.onclick
-
-            const span = /** @type {HTMLSpanElement} */ (colDiv.querySelector('.analyze_placeholder'));
-            if (span) {
-              span.appendChild(document.createTextNode('  ')); // Add space before button
-              span.appendChild(btn);
-            }
-          } // if (btn)
-        } // if (colDiv)  
-
-        if (colDiv) {
-          const btn = /** @type {HTMLButtonElement} */ (document.createElement('button'));
-          if (btn) {
-            btn.textContent = '>';
-            btn.style = 'font-size:0.7em; color:#888; margin: 0px 0px 0px 0px; text-align:center;';
-            btn.onclick =
-              /**
-               * Callback for column click. Tries to open CBZ viewer first,
-               * otherwise opens the details modal.
-               * @param {PointerEvent} ev
-               */
-              async (ev) => {
-                /** @type {HTMLDivElement} */ (document.getElementById('block-modal')).style = '';
-                await window.api.openCbzViewer(record);
-              }; // btn.onclick
-
-            const span = /** @type {HTMLSpanElement} */ (colDiv.querySelector('.viewer_placeholder'));
-            if (span) {
-              span.appendChild(document.createTextNode(' ')); // Add space before button
-              span.appendChild(btn);
-            }
-          } // if (btn)
-        } // if (colDiv)
-
+        const mangaColumn = new MangaColumn(record);
+        const colDiv = await mangaColumn.render();
         rowDiv.appendChild(colDiv);
+      });
 
-      }); // entries.slice().forEach
       container.appendChild(rowDiv);
     }
   }
@@ -393,7 +342,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   });
 
   /**
-   * Pull Manga Hukuneko data and reload grid 
+   * Pull Manga Hukuneko data and reload grid
    * @returns {Promise<void>}
    * @async
    */
@@ -689,12 +638,12 @@ window.addEventListener('DOMContentLoaded', async () => {
           <button id="action${id}">Action</button>
       `;
       container.appendChild(div);
-  
+
       var btnDetails = `details${id}`;
       var btnActions = `action${id}`;
       var msgDetails = `Details for ${record.hmanga}`;
       var msgActions = `Actions for ${record.hmanga}`;
-  
+
       document.getElementById(btnDetails).addEventListener('click', function () {
         alert(msgDetails);
       });

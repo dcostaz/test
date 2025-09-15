@@ -1,70 +1,70 @@
-<h4 class="manga-title" title="${record.hmanga || 'No Title'}" ${record.id ?? ` style="color: red;" `}>${record.hmanga
-    || 'No Title'}</h4>
+<h4 class="manga-title" title="{{record.hmanga_or_notitle}}" {{record.style_if_no_id}}>{{record.hmanga_or_notitle}}</h4>
 <div class="detail-image">
-    <img src="images/manga/${record.himageAvailable ? record.key : 'placeholder'}.jpg" alt="Cover"
-        style="width:160px; height:auto; aspect-ratio: 4/6; object-fit:cover; display:block; margin:0 auto;"
-        onerror="this.onerror=null;this.src='images/manga/placeholder.jpg';">
-    <div style="font-size:0.5em; color:#888; margin: 4px 0 8px 0; text-align:center;">
-        ${record.key}
-    </div>
+  <img src="{{mangaImageData}}"
+      alt="Cover"
+      style="width:160px; height:auto; aspect-ratio: 4/6; object-fit:cover; display:block; margin:0 auto;"
+      onerror="this.onerror=null;this.src='images/manga/placeholder.jpg';">
+  <div style="font-size:0.5em; color:#888; margin: 4px 0 8px 0; text-align:center;">
+    <span class="copy_key_placeholder">{{record.key}}</span>
+  </div>
 </div>
-<div class="detail-text" style="div.custom-paragraph {line-height: .8em;}">
-    <div style="text-align:left; font-size:.9em; font-weight:bold;">ID</div>
-    <div>
-        <span style="text-align:left; font-size:.7em;">
-            ${record.id || '- NA -'}
-        </span>
-    </div>
-    <div style="text-align:left; font-size:.9em; font-weight:bold; margin-top: 5px;">Chapter</div>
-    <div>
-        <div>
-            <span class="label" style="text-align:center; font-size:.7em;">
-                read
-            </span>
-            <span class="label" style="text-align:center; font-size:.7em;">
-                lchap
-            </span>
-            <span class="label" style="text-align:center; font-size:.7em;">
-                mupdts
-            </span>
-        </div>
-        <span class="label" style="text-align:center; font-size:.7em;">
-            ${record.hchapter || '- NA -'}
-        </span>
-        <span class="label" style="text-align:center; font-size:.7em;">
-            ${record.hlastchapter !== null ? record.hlastchapter : 0}
-        </span>
-        <span class="label" style="text-align:center; font-size:.7em;">
-            ${(record.lastChapter || '- NA - ')}
-        </span>
-    </div>
-    <div style="text-align:left; font-size:.9em; font-weight:bold; margin-top: 5px;">
-        <span class="label-section-header" style="text-align:left;">
-            Type
-        </span>
-        <span class="label-section-header" style="text-align:left;">
-            Year
-        </span>
-    </div>
-    <div>
-        <span class="label-type" style="text-align:left; font-size:.7em;">
-            ${record.type || '- NA -'}
-        </span>
-        <span class="label-year" style="text-align:left; font-size:.7em;">
-            ${record.year || '- NA -'}
-        </span>
-    </div>
-    <div style="text-align:left; font-size:.9em; font-weight:bold; margin-top: 5px;">Completely Scanlated?</div>
-    <div>
-        <span style="text-align:left; font-size:.7em;">
-            ${record.completed === true ? 'Yes' : record.completed === false ? 'No' : '- NA -'}
-        </span>
-    </div>
-    <div style="text-align:left; font-size:.9em; font-weight:bold; margin-top: 5px;">Status in Country of Origin</div>
-    <div>
-        <span style="text-align:left; font-size:.6em;">
-            ${record.status !== undefined && record.status !== null ? convertChaptersTextToHtml(record.status) : '- NA
-            -'}
-        </span>
-    </div>
+<div class="detail-text" style:"div.custom-paragraph {line-height: .8em;}">
+  <div style="text-align:left; font-size:.9em; font-weight:bold;">ID
+    <span class="analyze_placeholder" style="text-align:left; font-size:.9em;">{{record.id_or_empty}}</span>
+  </div>
+  <div style="text-align:left; font-size:.9em; font-weight:bold; margin-top: 5px;">Chapter</div>
+  <div>
+  <div>
+    <span class="label" style="text-align:center; font-size:.7em;">
+      read
+    </span>
+    <span class="label-chapter" style="text-align:center; font-size:.7em;">
+    </span>
+    <span class="label" style="text-align:center; font-size:.7em;">
+      lchap
+    </span>
+    <span class="label" style="text-align:center; font-size:.7em;">
+      mupdts
+    </span>
+  </div>
+    <span id="current-chapter" class="label" style="text-align:right; font-size:.7em;">
+      {{record.hchapter_or_na}}
+    </span>
+    <span id="current-chapter" class="label-chapter viewer_placeholder" style="text-align:left; font-size:.7em;">
+    </span>
+    <span class="label" style="text-align:center; font-size:.7em;">
+      {{record.hlastchapter_or_0}}
+    </span>
+    <span class="label" style="text-align:center; font-size:.7em;">
+      {{record.lastChapter_or_na}}
+    </span>
+  </div>
+  <div style="text-align:left; font-size:.9em; font-weight:bold; margin-top: 5px;">
+    <span class="label-section-header" style="text-align:left;">
+      Type
+    </span>
+    <span class="label-section-header" style="text-align:left;">
+      Year
+    </span>
+  </div>
+  <div>
+    <span class="label-type" style="text-align:left; font-size:.7em;">
+    {{record.type_or_na}}
+    </span>
+    <span class="label-year" style="text-align:left; font-size:.7em;">
+    {{record.year_or_na}}
+    </span>
+  </div>
+  <div style="text-align:left; font-size:.9em; font-weight:bold; margin-top: 5px;">Completely Scanlated?</div>
+  <div>
+    <span style="text-align:left; font-size:.7em;">
+    {{record.completed_status}}
+    </span>
+  </div>
+  <div style="text-align:left; font-size:.9em; font-weight:bold; margin-top: 5px;">Status in Country of Origin</div>
+  <div>
+    <span style="text-align:left; font-size:.6em;">
+    {{record.status_html}}
+    </span>
+  </div>
 </div>
