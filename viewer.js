@@ -12,10 +12,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
     /** @type {string[]} */
     let chapterList = [];
-
     /** @type {number} */
     let currentIndex = -1;
+    /** @type {number} */
     let zoom = 100;
+    /** @type {number | null} */
+    let lockedBaseWidth = null;
 
     /**
      * Applies the current zoom level to a single image.
@@ -23,22 +25,13 @@ window.addEventListener('DOMContentLoaded', () => {
      */
     function applyZoomToImage(img) {
         if (zoom === 100) {
-            // Reset to default responsive behavior
             img.style.width = '100%';
             img.style.maxWidth = '100%';
-            delete img.dataset.baseWidth;
         } else {
-            // If we need a base width (for pixel-based zooming) and don't have one, get it.
-            // This happens on the first zoom away from 100%.
-            if (!img.dataset.baseWidth) {
-                img.dataset.baseWidth = img.clientWidth;
-            }
-
-            const baseWidth = parseFloat(img.dataset.baseWidth);
-            if (baseWidth > 0) { // Ensure image was loaded and has a width
-                const newPixelWidth = baseWidth * (zoom / 100);
+            if (lockedBaseWidth) {
+                const newPixelWidth = lockedBaseWidth * (zoom / 100);
                 img.style.width = `${newPixelWidth}px`;
-                img.style.maxWidth = 'none'; // Allow image to exceed container width
+                img.style.maxWidth = 'none';
             }
         }
     }
@@ -48,14 +41,24 @@ window.addEventListener('DOMContentLoaded', () => {
      * @param {number} newZoom - The new zoom level.
      */
     function updateZoom(newZoom) {
-        zoom = Math.max(70, Math.min(130, newZoom)); // Clamp zoom
-        const images = imageContainer.querySelectorAll('img');
-        images.forEach(img => {
-            // Ensure the image is loaded before trying to get its width
-            if (img.complete) {
-                applyZoomToImage(img);
+        const oldZoom = zoom;
+        zoom = Math.max(70, Math.min(130, newZoom));
+
+        // If we are zooming away from 100% for the first time, lock the base width.
+        if (oldZoom === 100 && zoom !== 100) {
+            const firstImage = imageContainer.querySelector('img');
+            if (firstImage) {
+                lockedBaseWidth = firstImage.clientWidth;
             }
-        });
+        }
+
+        // If we are resetting the zoom, clear the locked width.
+        if (zoom === 100) {
+            lockedBaseWidth = null;
+        }
+
+        const images = imageContainer.querySelectorAll('img');
+        images.forEach(applyZoomToImage);
     }
 
     /**
@@ -82,18 +85,13 @@ window.addEventListener('DOMContentLoaded', () => {
             const img = document.createElement('img');
             img.src = imageSrc;
             img.alt = 'Manga Page';
-
-            // Set initial width to 100% so it fills the container before any zooming.
             img.style.width = '100%';
             img.style.maxWidth = '100%';
 
             img.onload = () => {
-                // Apply the current zoom state to the new image once it's loaded.
-                // This is crucial for when chapters are changed while zoomed in.
                 applyZoomToImage(img);
             };
 
-            img.style.width = `${zoom}%`;
             imageContainer.appendChild(img);
         });
 
@@ -179,18 +177,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Next Chapter Button event listeners
     nextBtn.addEventListener('click', nextChapter);
-
-    /**
-     * Updates the zoom level of the images.
-     * @param {number} newZoom - The new zoom level.
-     */
-    function updateZoom(newZoom) {
-        zoom = Math.max(70, Math.min(130, newZoom)); // Clamp zoom between 70 and 130
-        const images = imageContainer.querySelectorAll('img');
-        images.forEach(img => {
-            img.style.width = `${zoom}%`;
-        });
-    }
 
     // Zoom In Button event listener
     zoomInBtn.addEventListener('click', () => {
