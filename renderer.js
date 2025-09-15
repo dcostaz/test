@@ -179,7 +179,11 @@ window.addEventListener('DOMContentLoaded', async () => {
             <div style="text-align:left; font-size:.9em; font-weight:bold; margin-top: 5px;">Chapter</div>
             <div>
             <div>
-              <span class="label viewer_placeholder" style="text-align:center; font-size:.7em;"></span>
+              <span class="label" style="text-align:center; font-size:.7em;">
+                read
+              </span>
+              <span class="label-chapter" style="text-align:center; font-size:.7em;">
+              </span>
               <span class="label" style="text-align:center; font-size:.7em;">
                 lchap
               </span>
@@ -187,8 +191,10 @@ window.addEventListener('DOMContentLoaded', async () => {
                 mupdts
               </span>
             </div>
-              <span id="current-chapter" class="label" style="text-align:center; font-size:.7em;">
+              <span id="current-chapter" class="label" style="text-align:right; font-size:.7em;">
                 ${record.hchapter || '- NA -'}
+              </span>
+              <span id="current-chapter" class="label-chapter viewer_placeholder" style="text-align:left; font-size:.7em;">
               </span>
               <span class="label" style="text-align:center; font-size:.7em;">
                 ${record.hlastchapter !== null ? record.hlastchapter : 0}
@@ -282,7 +288,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         if (colDiv) {
           const btn = /** @type {HTMLButtonElement} */ (document.createElement('button'));
           if (btn) {
-            btn.textContent = 'read';
+            btn.textContent = '>';
             btn.style = 'font-size:0.7em; color:#888; margin: 0px 0px 0px 0px; text-align:center;';
             btn.onclick =
               /**
