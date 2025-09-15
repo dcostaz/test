@@ -82,6 +82,7 @@ window.addEventListener('DOMContentLoaded', () => {
             const img = document.createElement('img');
             img.src = imageSrc;
             img.alt = 'Manga Page';
+
             // Set initial width to 100% so it fills the container before any zooming.
             img.style.width = '100%';
             img.style.maxWidth = '100%';
@@ -92,6 +93,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 applyZoomToImage(img);
             };
 
+            img.style.width = `${zoom}%`;
             imageContainer.appendChild(img);
         });
 
@@ -177,6 +179,18 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Next Chapter Button event listeners
     nextBtn.addEventListener('click', nextChapter);
+
+    /**
+     * Updates the zoom level of the images.
+     * @param {number} newZoom - The new zoom level.
+     */
+    function updateZoom(newZoom) {
+        zoom = Math.max(70, Math.min(130, newZoom)); // Clamp zoom between 70 and 130
+        const images = imageContainer.querySelectorAll('img');
+        images.forEach(img => {
+            img.style.width = `${zoom}%`;
+        });
+    }
 
     // Zoom In Button event listener
     zoomInBtn.addEventListener('click', () => {
