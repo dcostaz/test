@@ -6,6 +6,8 @@ window.addEventListener('DOMContentLoaded', () => {
     const nextBtn = /** @type {HTMLButtonElement} */ (document.getElementById('next-chapter'));
     const chapterInfo = /** @type {HTMLSpanElement} */ (document.getElementById('chapter-info'));
     const navigationBar = /** @type {HTMLDivElement} */ (document.getElementById('navigation-bar'));
+    const chapterListContainer = /** @type {HTMLDivElement} */ (document.getElementById('chapter-list-container'));
+    const chapterListElement = /** @type {HTMLUListElement} */ (document.getElementById('chapter-list'));
 
     let chapterList = [];
     let currentIndex = -1;
@@ -47,6 +49,31 @@ window.addEventListener('DOMContentLoaded', () => {
         // Update button states
         prevBtn.disabled = currentIndex === 0;
         nextBtn.disabled = currentIndex === chapterList.length - 1;
+
+        renderChapterList();
+    }
+
+    /**
+     * Renders the chapter list in the chapter list container.
+     */
+    function renderChapterList() {
+        chapterListElement.innerHTML = '';
+        chapterList.forEach((chapter, index) => {
+            const li = document.createElement('li');
+            li.textContent = chapter;
+            li.addEventListener('click', () => {
+                if (index !== currentIndex) {
+                    // Clear existing images
+                    imageContainer.innerHTML = '';
+                    imageContainer.scrollTop = 0;
+
+                    prevBtn.disabled = true;
+                    nextBtn.disabled = true;
+                    window.viewerAPI.getChapter(index);
+                }
+            });
+            chapterListElement.appendChild(li);
+        });
     }
 
     window.viewerAPI.onInitialChapterData((data) => {

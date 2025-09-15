@@ -91,3 +91,46 @@ html, body {
     font-weight: bold;
     font-family: sans-serif;
 }
+
+#chapter-list-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    z-index: 2;
+    background-color: rgba(0, 0, 0, 0.85);
+    color: #fff;
+    font-family: sans-serif;
+    transition: all 0.3s ease-in-out;
+    max-height: 40px;
+    overflow: hidden;
+    border-top-right-radius: 4px;
+}
+
+#chapter-list-container:hover {
+    max-height: 50vh;
+}
+
+#chapter-list-handle {
+    padding: 10px;
+    cursor: pointer;
+    background-color: rgba(0, 0, 0, 0.7);
+    height: 20px;
+}
+
+#chapter-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    overflow-y: auto;
+    max-height: calc(50vh - 40px);
+}
+
+#chapter-list li {
+    padding: 10px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#chapter-list li:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
