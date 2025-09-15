@@ -66,14 +66,6 @@ const ipcRegistry = {
  * @type {Object.<string, IpcConfig>}
  */
 const ipcDataRegistry = {
-    'get-manga-settings': {
-        context: 'api',
-        log: true,
-        name: 'getMangaSettings',
-        validateArgs: () => true,
-        requiresResponse: true,
-        returnType: "SettingsClass"
-    },
     'get-manga-image': {
         context: 'api',
         log: true,

@@ -227,7 +227,6 @@ async function getChapterData(record, chapterFileName) {
     }
 }
 
-
 /**
  * Loads a specific chapter and sends the images to the viewer window.
  * @param {mangaHakuneko} record - The manga record.

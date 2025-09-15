@@ -2106,19 +2106,6 @@ class Manga {
     }
 
     /**
-     * Get the Manga settings
-     * @returns {SettingsClass} - The Manga settings or an empty object if settings are not available.
-     */
-    getMangaSettings() {
-        // Get instance settings
-        if (!this.settings || !(this.settings instanceof Settings)) {
-            return Object.create(null);
-        }
-
-        return this.settings;
-    }
-
-    /**
      * Get the image data URL for a manga image.
      * @param {string} mangaImage - The filename of the manga image.
      * @returns {Promise<string|null>} - The data URL of the image or null if not found.

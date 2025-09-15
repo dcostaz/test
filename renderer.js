@@ -2,7 +2,6 @@
 'use strict';
 
 window.addEventListener('DOMContentLoaded', async () => {
-  const mangaSettings = await window.api.getMangaSettings();
   let hakuneko = await window.api.getHakunekoReadingList();
   const container = /** @type {HTMLDivElement} */ (document.getElementById('records-container'));
 

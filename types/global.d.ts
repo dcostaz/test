@@ -18,7 +18,6 @@ declare global {
      * of these operations, allowing callbacks to be registered and unsubscribed.
      */
     api: {
-      getMangaSettings: (...args: IpcApiArgs) => IpcApiResponse<SettingsClass>;
       getMangaImage: (...args: IpcApiArgs) => IpcApiResponse<string|null>;
       getHakunekoReadingList: (...args: IpcApiArgs) => IpcApiResponse<Record<string, mangaHakuneko>>;
       getUnmatchedFromReadingList: (...args: IpcApiArgs) => IpcApiResponse<mangaSerieReviewitemObj[]>;
