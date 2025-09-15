@@ -4,14 +4,62 @@ window.addEventListener('DOMContentLoaded', () => {
     const imageContainer = /** @type {HTMLDivElement} */ (document.getElementById('image-container'));
     const prevBtn = /** @type {HTMLButtonElement} */ (document.getElementById('prev-chapter'));
     const nextBtn = /** @type {HTMLButtonElement} */ (document.getElementById('next-chapter'));
+    const zoomInBtn = /** @type {HTMLButtonElement} */ (document.getElementById('zoom-in'));
+    const zoomOutBtn = /** @type {HTMLButtonElement} */ (document.getElementById('zoom-out'));
+    const zoomResetBtn = /** @type {HTMLButtonElement} */ (document.getElementById('zoom-reset'));
     const chapterInfo = /** @type {HTMLSpanElement} */ (document.getElementById('chapter-info'));
     const chapterListElement = /** @type {HTMLUListElement} */ (document.getElementById('chapter-list'));
 
     /** @type {string[]} */
     let chapterList = [];
-
     /** @type {number} */
     let currentIndex = -1;
+    /** @type {number} */
+    let zoom = 100;
+    /** @type {number | null} */
+    let lockedBaseWidth = null;
+
+    /**
+     * Applies the current zoom level to a single image.
+     * @param {HTMLImageElement} img
+     */
+    function applyZoomToImage(img) {
+        if (zoom === 100) {
+            img.style.width = '100%';
+            img.style.maxWidth = '100%';
+        } else {
+            if (lockedBaseWidth) {
+                const newPixelWidth = lockedBaseWidth * (zoom / 100);
+                img.style.width = `${newPixelWidth}px`;
+                img.style.maxWidth = 'none';
+            }
+        }
+    }
+
+    /**
+     * Updates the zoom level for all images.
+     * @param {number} newZoom - The new zoom level.
+     */
+    function updateZoom(newZoom) {
+        const oldZoom = zoom;
+        zoom = Math.max(70, Math.min(130, newZoom));
+
+        // If we are zooming away from 100% for the first time, lock the base width.
+        if (oldZoom === 100 && zoom !== 100) {
+            const firstImage = imageContainer.querySelector('img');
+            if (firstImage) {
+                lockedBaseWidth = firstImage.clientWidth;
+            }
+        }
+
+        // If we are resetting the zoom, clear the locked width.
+        if (zoom === 100) {
+            lockedBaseWidth = null;
+        }
+
+        const images = imageContainer.querySelectorAll('img');
+        images.forEach(applyZoomToImage);
+    }
 
     /**
      * Renders the chapter data in the viewer.
@@ -37,6 +85,13 @@ window.addEventListener('DOMContentLoaded', () => {
             const img = document.createElement('img');
             img.src = imageSrc;
             img.alt = 'Manga Page';
+            img.style.width = '100%';
+            img.style.maxWidth = '100%';
+
+            img.onload = () => {
+                applyZoomToImage(img);
+            };
+
             imageContainer.appendChild(img);
         });
 
@@ -122,6 +177,21 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Next Chapter Button event listeners
     nextBtn.addEventListener('click', nextChapter);
+
+    // Zoom In Button event listener
+    zoomInBtn.addEventListener('click', () => {
+        updateZoom(zoom + 5);
+    });
+
+    // Zoom Out Button event listener
+    zoomOutBtn.addEventListener('click', () => {
+        updateZoom(zoom - 5);
+    });
+
+    // Zoom Reset Button event listener
+    zoomResetBtn.addEventListener('click', () => {
+        updateZoom(100);
+    });
 
     // Keyboard navigation
     document.addEventListener('keydown', (event) => {
