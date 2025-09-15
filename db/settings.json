@@ -5,11 +5,14 @@
         "directoryPathName": "\\\\DS1515\\manga"
       },
       "database": {
-        "directoryPathName": "C:\\Users\\david\\OneDrive\\Documents\\manga-list\\db",
+        "directoryPathName": "C:\\SynologyDrive\\[manga]\\[manga-list]\\db",
         "manga": "manga.json",
         "mangalist": "mangalist.json",
         "hakuneko": "hakuneko.json",
         "mangaupdates": "mangaupdates.json"
+      },
+      "images": {
+        "directoryPathName": "C:\\SynologyDrive\\[manga]\\[manga-list]\\images"
       }
     }
   ],

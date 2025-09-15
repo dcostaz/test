@@ -9,30 +9,35 @@ const path = require('path');
  */
 const ipcRegistry = {
     'reload-manga-updates-reading-list': {
+        context: 'api',
         log: true,
         name: 'reloadMangaUpdatesReadingList',
         validateArgs: () => true,
         requiresResponse: false
     },
     'reload-manga-reading-list': {
+        context: 'api',
         log: true,
         name: 'reloadMangaReadingList',
         validateArgs: () => true,
         requiresResponse: false
     },
     'reload-hakuneko-list': {
+        context: 'api',
         log: true,
         name: 'reloadHakunekoList',
         validateArgs: () => true,
         requiresResponse: false
     },
     'sync-reading-list': {
+        context: 'api',
         log: true,
         name: 'syncReadingList',
         validateArgs: () => true,
         requiresResponse: false
     },
     'resolve-unmatched-entry': {
+        context: 'api',
         log: true,
         name: 'resolveUnmatchedEntry',
         type: "IpcApiResolveUnmatchedEntry",
@@ -43,6 +48,7 @@ const ipcRegistry = {
         callbackType: '(id: number, selectedEntry: mangaReviewItemObj, selectedReadingItem?: MangaUpdatesSearchSeriesResultEntry[]) => void'
     },
     'remove-unmatched-entry': {
+        context: 'api',
         log: true,
         name: 'removeUnmatchedEntry',
         type: "IpcApiRemoveUnmatchedEntry",
@@ -60,7 +66,24 @@ const ipcRegistry = {
  * @type {Object.<string, IpcConfig>}
  */
 const ipcDataRegistry = {
+    'get-manga-settings': {
+        context: 'api',
+        log: true,
+        name: 'getMangaSettings',
+        validateArgs: () => true,
+        requiresResponse: true,
+        returnType: "SettingsClass"
+    },
+    'get-manga-image': {
+        context: 'api',
+        log: true,
+        name: 'getMangaImage',
+        validateArgs: () => true,
+        requiresResponse: true,
+        returnType: "string|null"
+    },
     'get-hakuneko-reading-list': {
+        context: 'api',
         log: true,
         name: 'getHakunekoReadingList',
         validateArgs: () => true,
@@ -68,6 +91,7 @@ const ipcDataRegistry = {
         returnType: "Record<string, mangaHakuneko>"
     },
     'get-unmatched-from-reading-list': {
+        context: 'api',
         log: true,
         name: 'getUnmatchedFromReadingList',
         validateArgs: () => true,
@@ -75,6 +99,7 @@ const ipcDataRegistry = {
         returnType: "mangaSerieReviewitemObj[]"
     },
     'search-manga-updates-serie-by-id': {
+        context: 'api',
         log: true,
         name: 'searchMangaUpdatesSerieByID',
         type: "IpcApiSearchMangaUpdatesSerieByID",
@@ -90,6 +115,7 @@ const ipcDataRegistry = {
         returnType: "MangaUpdatesSeriesResultEntry"
     },
     'search-manga-updates-serie-by-name': {
+        context: 'api',
         log: true,
         name: 'searchMangaUpdatesSerieByName',
         type: "IpcApiSearchMangaUpdatesSerieByName",

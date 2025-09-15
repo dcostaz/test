@@ -27,7 +27,7 @@ class Hakuneko {
         /** @type {Low} - References the Settings database. */
         this.db = db;
 
-        /** @type {any} - Cache of the hakuneko settings. */
+        /** @type {HakunekoSettings} - Cache of the hakuneko settings. */
         this.settings = settings;
     }
 
@@ -79,7 +79,7 @@ class Hakuneko {
         // Ensure all changes are written to the database
         await _db.write();
 
-        /** @type {any} - Cache of the manga-list/mangalist/hakuneko settings. */
+        /** @type {HakunekoSettings} - Cache of the manga-list/mangalist/hakuneko settings. */
         const _settings = JSON.parse(JSON.stringify({
             mangalist: settings.mangalist,
             redis: settings.redis,
@@ -121,6 +121,10 @@ class Hakuneko {
      * @returns {Promise<void>} A promise that resolves to an object containing the Hakuneko manga entries.
      */
     async rebuildHakunekoImages() {
+        // Get the reference to the manga-list settings
+        /** @type {SettingsMangaList} - Cache of the manga-list settings. */
+        const mangalist = this.settings.mangalist;
+
         // Assign to local variable for easier reference
         const db = this.db;
 
@@ -135,7 +139,7 @@ class Hakuneko {
 
         // Directory where manga images are stored
         /** @type {string} - Directory path for manga images. */
-        const imageDir = path.join(__root, 'images', 'manga');
+        const imageDir = path.join(mangalist.images.directoryPathName);
 
         /** @type FileEntry[]} - List of image files in the manga directory. */
         const imageFiles = await fs.readdir(imageDir, { withFileTypes: true })

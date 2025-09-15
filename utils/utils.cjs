@@ -193,6 +193,26 @@ class Utils {
     }
 
     /**
+     * Checks if a value is a valid IpcConfig object.
+     * @param {unknown} value
+     * @returns {value is IpcConfig}
+     * @static
+     */
+    static isIpcConfig(value) {
+        return (
+            typeof value === 'object' &&
+            value !== null &&
+            (
+                'context' in value ||
+                'log' in value ||
+                'validateArgs' in value ||
+                'requiresResponse' in value ||
+                'name' in value
+            )
+        );
+    }
+
+    /**
      * @param {unknown} error
      * @returns {Error}
      * @static

@@ -11,6 +11,7 @@ interface UtilsConstructor {
   serieDetailObj<T extends Record<string, unknown>>(obj: T): mangaSerieDetail;
   wait: (ms: number) => Promise<void>;
   getClassMethodNames: (obj: Object) => string[];
+  isIpcConfig: (obj: unknown) => obj is IpcConfig;
   normalizeError: (error: unknown) => Error;
   parseBoolean: (value: unknown) => boolean;
   safeJsonParse: (input: string, field: string) => Record<string, unknown>;

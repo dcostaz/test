@@ -46,6 +46,9 @@ interface SettingsMangaList {
     directoryPathName: string;
   };
   database: Record<DatabaseKey, string>;
+  images: {
+    directoryPathName: string;
+  };
 }
 
 // Strongly typed keys for mangalist database entries

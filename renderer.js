@@ -2,6 +2,7 @@
 'use strict';
 
 window.addEventListener('DOMContentLoaded', async () => {
+  const mangaSettings = await window.api.getMangaSettings();
   let hakuneko = await window.api.getHakunekoReadingList();
   const container = /** @type {HTMLDivElement} */ (document.getElementById('records-container'));
 
@@ -148,13 +149,16 @@ window.addEventListener('DOMContentLoaded', async () => {
       const rowDiv = document.createElement('div');
       rowDiv.className = 'row';
 
-      entries.slice(start, end).forEach(([_, record]) => {
+      entries.slice(start, end).forEach(async ([_, record]) => {
+        const mangaImage = (record.himageAvailable ? record.key : 'placeholder').concat('.jpg');
+        const mangaImageData = await window.api.getMangaImage(mangaImage);
+
         const colDiv = document.createElement('div');
         colDiv.className = 'column';
         colDiv.innerHTML = `
           <h4 class="manga-title" title="${record.hmanga || 'No Title'}"${record.id ?? ` style="color: red;"`}>${record.hmanga || 'No Title'}</h4>
           <div class="detail-image">
-            <img src="images/manga/${record.himageAvailable ? record.key : 'placeholder'}.jpg" 
+            <img src="${mangaImageData}" 
                 alt="Cover" 
                 style="width:160px; height:auto; aspect-ratio: 4/6; object-fit:cover; display:block; margin:0 auto;"
                 onerror="this.onerror=null;this.src='images/manga/placeholder.jpg';">

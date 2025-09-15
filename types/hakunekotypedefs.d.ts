@@ -2,7 +2,7 @@
 
 interface HakunekoParameters {
   db: Low;
-  settings: Record<string, any>;
+  settings: HakunekoSettings;
 };
 
 declare interface HakunekoClass {
@@ -18,6 +18,13 @@ declare interface HakunekoConstructor {
   new (args: HakunekoParameters): HakunekoClass;
 
   init(settings: SettingsClass): Promise<HakunekoClass>;
+}
+
+interface HakunekoSettings {
+  mangalist: SettingsMangaList;
+  redis: SettingsRedis;
+  hakuneko: SettingsHakuneko;
+  mangaupdates: SettingsMangaUpdates;
 }
 
 interface HakunekoEntry extends objectBase {

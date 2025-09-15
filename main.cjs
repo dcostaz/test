@@ -205,7 +205,7 @@ async function getChapterData(record, chapterFileName) {
 
         for (const fileName of sortedFiles) {
             const file = zip.files[fileName];
-            if (!file.dir && /\.(jpg|jpeg|png|gif)$/i.test(fileName)) {
+            if (!file.dir && /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName)) {
                 const promise = file.async('base64').then(base64 => {
                     const extension = path.extname(fileName).substring(1);
                     return `data:image/${extension};base64,${base64}`;
@@ -283,6 +283,7 @@ function openCbzViewer() {
         }
     });
 
+    cbzViewerWindow.setMenu(null); // This removes the menu
     cbzViewerWindow.loadFile('viewer.html');
 
     cbzViewerWindow.on('closed', () => {

@@ -19,7 +19,6 @@ const template = require('string-placeholder');
 
 /** @typedef {import('redis').RedisClientType} RedisClientType */
 const redis = require('redis');
-const { Axios } = require('axios');
 const { console } = require('inspector');
 
 /** @type {SettingsConstructor} - Settings class Static Elements. */
@@ -2104,6 +2103,41 @@ class Manga {
         }
 
         return;
+    }
+
+    /**
+     * Get the Manga settings
+     * @returns {SettingsClass} - The Manga settings or an empty object if settings are not available.
+     */
+    getMangaSettings() {
+        // Get instance settings
+        if (!this.settings || !(this.settings instanceof Settings)) {
+            return Object.create(null);
+        }
+
+        return this.settings;
+    }
+
+    /**
+     * Get the image data URL for a manga image.
+     * @param {string} mangaImage - The filename of the manga image.
+     * @returns {Promise<string|null>} - The data URL of the image or null if not found.
+     */
+    async getMangaImage(mangaImage) {
+        const imgFile = path.join(this.settings.mangalist.images.directoryPathName, mangaImage);
+
+        try {
+            const data = await fs.readFile(imgFile);
+            const ext = path.extname(imgFile).substring(1).toLowerCase();
+
+            // Default to jpg if extension is missing or not recognized
+            const mimeType = ['jpg', 'jpeg', 'png', 'gif'].includes(ext) ? ext : 'jpg';
+
+            return `data:image/${mimeType};base64,${data.toString('base64')}`;
+        } catch (error) {
+            console.error(`Failed to read image file at ${imgFile}:`, error);
+            return null;
+        }
     }
 
     /**

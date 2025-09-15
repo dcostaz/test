@@ -57,15 +57,81 @@ window.addEventListener('DOMContentLoaded', () => {
         render(data);
     });
 
-    prevBtn.addEventListener('click', () => {
+    /**
+     * Helper that handles the previous chapter request.
+     */
+    const previousChapter = () => {
         if (currentIndex > 0) {
+            // Clear existing images
+            imageContainer.innerHTML = '';
+            imageContainer.scrollTop = 0;
+
+            prevBtn.disabled = true;
+            nextBtn.disabled = true;
+
             window.viewerAPI.getChapter(currentIndex - 1);
         }
-    });
+    };
 
-    nextBtn.addEventListener('click', () => {
+    /**
+     * Helper that handles the next chapter request.
+     */
+    const nextChapter = () => {
         if (currentIndex < chapterList.length - 1) {
+            // Clear existing images
+            imageContainer.innerHTML = '';
+            imageContainer.scrollTop = 0;
+
+            prevBtn.disabled = true;
+            nextBtn.disabled = true;
+
             window.viewerAPI.getChapter(currentIndex + 1);
+        }
+    };
+
+    // Previous Chapter Button event listeners
+    prevBtn.addEventListener('click', previousChapter);
+
+    // Next Chapter Button event listeners
+    nextBtn.addEventListener('click', nextChapter);
+
+    // Keyboard navigation
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowLeft') {
+            previousChapter();
+        } else if (event.key === 'ArrowRight') {
+            nextChapter();
+        } else if (event.key === 'Escape') {
+            window.close();
+        } else if (event.key === ' ') {
+            imageContainer.scrollBy({
+                top: window.innerHeight * 0.65,
+                behavior: "smooth"
+            });
+            event.preventDefault();
+        } else if (event.key === "PageUp") {
+            imageContainer.scrollBy({
+                top: -window.innerHeight * 0.9,
+                behavior: "smooth"
+            });
+        } else if (event.key === "PageDown") {
+            imageContainer.scrollBy({
+                top: window.innerHeight * 0.9,
+                behavior: "smooth"
+            });
+        } else if (event.key === "Home") {
+            // Scroll to top
+            imageContainer.scrollTo({
+                top: 0,
+                behavior: "auto"
+            });
+        }
+        else if (event.key === "End") {
+            // Scroll to bottom
+            imageContainer.scrollTo({
+                top: imageContainer.scrollHeight,
+                behavior: "auto"
+            });
         }
     });
 

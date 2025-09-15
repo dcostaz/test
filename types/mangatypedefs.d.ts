@@ -25,6 +25,8 @@ interface MangaClass {
   updateDirectoriesWithOutMangaUpdatesReadingList: () => Promise<void>;
   addSerieToMangaUpdatesReadingList: (series: mangaReadingList[]) => Promise<void>;
 
+  getMangaSettings: () => SettingsClass;
+  getMangaImage: () => Promise<string|null>;
   reloadMangaUpdatesReadingList: () => Promise<boolean>;
   reloadMangaReadingList: () => Promise<boolean>;
   reloadHakunekoList: () => Promise<boolean>;

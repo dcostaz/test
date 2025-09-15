@@ -12,13 +12,13 @@ const { ipcRegistry, ipcDataRegistry } = require('./ipcRegistry.cjs');
 const api = {};
 
 // Case 1: Send methods (fire-and-forget) & Case 4: Invoke-style messages (request-response)
-for (const [channel, config] of Object.entries({ ...ipcRegistry, ...ipcDataRegistry })) {
+for (const [channel, config] of Object.entries({ ...ipcRegistry, ...ipcDataRegistry }).filter(([_, cfg]) => cfg.context === 'api')) {
   const methodName = Utils.kebabToCamel(channel);
   const channelConfig = /** @type {IpcConfig} */ (config);
 
   /** @type {(...args: IpcApiArgs) => Promise<void>} */
   api[methodName] = (...args) => {
-    if (isIpcConfig(channelConfig) && channelConfig.validateArgs && !channelConfig.validateArgs(args)) {
+    if (Utils.isIpcConfig(channelConfig) && channelConfig.validateArgs && !channelConfig.validateArgs(args)) {
       return Promise.reject(new Error(`Invalid arguments for ${channel}`));
     }
     if (channelConfig.requiresResponse) {
@@ -31,7 +31,7 @@ for (const [channel, config] of Object.entries({ ...ipcRegistry, ...ipcDataRegis
 }
 
 // Case 2 & 3: Event listeners (done & failed)
-for (const [channel] of Object.entries(ipcRegistry)) {
+for (const [channel] of Object.entries(ipcRegistry).filter(([_, cfg]) => cfg.context === 'api')) {
   const baseName = Utils.kebabToCamel(channel, true);
 
   /** @type {(callback: IpcCallback) => () => void} */
@@ -72,21 +72,3 @@ console.log('IPC API initialized:', api);
 
 // Expose to renderer
 contextBridge.exposeInMainWorld('api', api);
-
-/**
- * Checks if a value is a valid IpcConfig object.
- * @param {unknown} value
- * @returns {value is IpcConfig}
- */
-function isIpcConfig(value) {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    (
-      'log' in value ||
-      'validateArgs' in value ||
-      'requiresResponse' in value ||
-      'name' in value
-    )
-  );
-}
