@@ -5,11 +5,12 @@ window.addEventListener('DOMContentLoaded', () => {
     const prevBtn = /** @type {HTMLButtonElement} */ (document.getElementById('prev-chapter'));
     const nextBtn = /** @type {HTMLButtonElement} */ (document.getElementById('next-chapter'));
     const chapterInfo = /** @type {HTMLSpanElement} */ (document.getElementById('chapter-info'));
-    const navigationBar = /** @type {HTMLDivElement} */ (document.getElementById('navigation-bar'));
-    const chapterListContainer = /** @type {HTMLDivElement} */ (document.getElementById('chapter-list-container'));
     const chapterListElement = /** @type {HTMLUListElement} */ (document.getElementById('chapter-list'));
 
+    /** @type {string[]} */
     let chapterList = [];
+
+    /** @type {number} */
     let currentIndex = -1;
 
     /**
