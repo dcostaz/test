@@ -26,7 +26,19 @@ body {
 
 .label {
   display: inline-block;
-  width: 3em;
+  width: 2em;
+  /* adjust to fit your desired fixed space */
+  min-width: 3em;
+  text-align: center;
+  /* or left/center as needed */
+  margin-right: 0.5em;
+  color: #635e5e;
+  /* optional styling */
+}
+
+.label-chapter {
+  display: inline-block;
+  width: 1em;
   /* adjust to fit your desired fixed space */
   min-width: 2em;
   text-align: center;
