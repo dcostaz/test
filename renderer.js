@@ -149,8 +149,14 @@ window.addEventListener('DOMContentLoaded', async () => {
       rowDiv.className = 'row';
 
       entries.slice(start, end).forEach(async ([_, record]) => {
-        const mangaImage = (record.himageAvailable ? record.key : 'placeholder').concat('.jpg');
-        const mangaImageData = await window.api.getMangaImage(mangaImage);
+        // Load manga image
+        let mangaImageData = 'images/manga/placeholder.jpg';
+        if(record.himageAvailable) {
+          const image = await window.api.getMangaImage(record.key.concat('.jpg'));
+          if (image) {
+            mangaImageData = image;
+          }
+        }
 
         const colDiv = document.createElement('div');
         colDiv.className = 'column';

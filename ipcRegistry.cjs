@@ -68,7 +68,7 @@ const ipcRegistry = {
 const ipcDataRegistry = {
     'get-manga-image': {
         context: 'api',
-        log: true,
+        log: false,
         name: 'getMangaImage',
         validateArgs: () => true,
         requiresResponse: true,
