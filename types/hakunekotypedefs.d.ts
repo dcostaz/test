@@ -18,6 +18,8 @@ declare interface HakunekoConstructor {
   new (args: HakunekoParameters): HakunekoClass;
 
   init(settings: SettingsClass): Promise<HakunekoClass>;
+  getHakunekoBookmarks(bookmarksPathName: string): Promise<Bookmark[]>;
+  getHakunekoChaptermarks(chapterMarksPathName: string): Promise<ChapterMark[]>;
 }
 
 interface HakunekoSettings {
@@ -53,6 +55,7 @@ interface Bookmark {
 interface ChapterMark {
   mangaID: string;
   connectorID: string;
+  chapterID: string;
   chapterTitle: string;
 };
 

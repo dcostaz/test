@@ -24,6 +24,7 @@ interface MangaClass {
   buildMangaHakuneko: () => Promise<void>;
   updateDirectoriesWithOutMangaUpdatesReadingList: () => Promise<void>;
   addSerieToMangaUpdatesReadingList: (series: mangaReadingList[]) => Promise<void>;
+  updateMangaChapter: (key: string, newChapter: number) => Promise<void>;
 
   getMangaSettings: () => SettingsClass;
   getMangaImage: () => Promise<string|null>;

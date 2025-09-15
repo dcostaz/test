@@ -67,6 +67,14 @@ api['toggleDevTools'] = () => ipcRenderer.send('toggle-dev-tools');
  */
 api['openCbzViewer'] = (record) => ipcRenderer.invoke('open-cbz-viewer', record);
 
+/** @type {(callback: IpcCallback) => () => void} */
+api['onCBZViewerClosed'] = (callback) => {
+  /** @type {(event: unknown, ...args: IpcApiArgs) => void} */
+  const listener = (event, ...args) => callback(...args);
+  ipcRenderer.on('cbz-viewer-closed', listener);
+  return () => ipcRenderer.removeListener('cbz-viewer-closed', listener);
+};
+
 // Log API Registry
 console.log('IPC API initialized:', api);
 

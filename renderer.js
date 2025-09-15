@@ -151,7 +151,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       entries.slice(start, end).forEach(async ([_, record]) => {
         // Load manga image
         let mangaImageData = 'images/manga/placeholder.jpg';
-        if(record.himageAvailable) {
+        if (record.himageAvailable) {
           const image = await window.api.getMangaImage(record.key.concat('.jpg'));
           if (image) {
             mangaImageData = image;
@@ -159,6 +159,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         }
 
         const colDiv = document.createElement('div');
+        colDiv.id = `${record.key}`;
         colDiv.className = 'column';
         colDiv.innerHTML = `
           <h4 class="manga-title" title="${record.hmanga || 'No Title'}"${record.id ?? ` style="color: red;"`}>${record.hmanga || 'No Title'}</h4>
@@ -173,7 +174,7 @@ window.addEventListener('DOMContentLoaded', async () => {
           </div>
           <div class="detail-text" style:"div.custom-paragraph {line-height: .8em;}">
             <div style="text-align:left; font-size:.9em; font-weight:bold;">ID
-              <span class="analyze_placeholder" style="text-align:left; font-size:.9em;"></span>
+              <span class="analyze_placeholder" style="text-align:left; font-size:.9em;">${record.id ? String(record.id) : ''}</span>
             </div>
             <div style="text-align:left; font-size:.9em; font-weight:bold; margin-top: 5px;">Chapter</div>
             <div>
@@ -186,7 +187,7 @@ window.addEventListener('DOMContentLoaded', async () => {
                 mupdts
               </span>
             </div>
-              <span class="label" style="text-align:center; font-size:.7em;">
+              <span id="current-chapter" class="label" style="text-align:center; font-size:.7em;">
                 ${record.hchapter || '- NA -'}
               </span>
               <span class="label" style="text-align:center; font-size:.7em;">
@@ -255,11 +256,11 @@ window.addEventListener('DOMContentLoaded', async () => {
           } // if (btn)
         } // if (colDiv)
 
-        if (colDiv) {
+        if (colDiv && !(record.id ? true : false)) {
           const btn = /** @type {HTMLButtonElement} */ (document.createElement('button'));
           if (btn) {
-            btn.textContent = 'Analyze '.concat(record.id ? String(record.id) : ' (no ID)');
-            btn.style = 'font-size:0.9em; color:#888; margin: 0px 0px 0px 0px; text-align:center;';
+            btn.textContent = 'Search MangaUpdates for Match';
+            btn.style = 'font-size:0.7em; color:#888; margin: 0px 0px 0px 0px; text-align:center;';
             btn.onclick =
               /**
                * Callback for column click. Tries to open CBZ viewer first,
@@ -272,7 +273,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
             const span = /** @type {HTMLSpanElement} */ (colDiv.querySelector('.analyze_placeholder'));
             if (span) {
-              span.appendChild(document.createTextNode(' ')); // Add space before button
+              span.appendChild(document.createTextNode('  ')); // Add space before button
               span.appendChild(btn);
             }
           } // if (btn)
@@ -290,6 +291,7 @@ window.addEventListener('DOMContentLoaded', async () => {
                * @param {PointerEvent} ev
                */
               async (ev) => {
+                /** @type {HTMLDivElement} */ (document.getElementById('block-modal')).style = '';
                 await window.api.openCbzViewer(record);
               }; // btn.onclick
 
@@ -307,6 +309,34 @@ window.addEventListener('DOMContentLoaded', async () => {
       container.appendChild(rowDiv);
     }
   }
+
+  window.api.onReloadMangaUpdatesReadingListDone(() => {
+    setAllDisabled(false);
+  });
+
+  /**
+   * Callback when CBZ viewer window is closed.
+   * @param {string} key
+   * @param {number} chapterNumber
+   */
+  window.api.onCBZViewerClosed((key, chapterNumber) => {
+    /** @type {HTMLDivElement} */ (document.getElementById('block-modal')).style = 'display: none;';
+
+    if (key && chapterNumber) {
+      const serie = /** @type {HTMLDivElement} */ (document.getElementById(''.concat(key)));
+
+      if (serie) {
+        const currentChapter = /** @type {HTMLSpanElement} */ (serie.querySelector('#current-chapter'));
+        if (currentChapter) {
+          currentChapter.innerText = String(chapterNumber);
+          const obj = Object.values(hakuneko).find(o => o.key === key);
+          if (obj) {
+            obj.hchapter = chapterNumber;
+          }
+        }
+      }
+    }
+  });
 
   const toggleBtn = /** @type {HTMLButtonElement} */ (document.getElementById("toggleBtn"));
   const dropdownMenu = /** @type {HTMLUListElement} */ (document.getElementById("dropdownMenu"));
@@ -627,7 +657,18 @@ window.addEventListener('DOMContentLoaded', async () => {
     modalBody.innerHTML = '';
   }
 
-  /** @type {HTMLButtonElement} */ (document.getElementById('closeModalBtn')).addEventListener('click', closeModal);
+  const btnClose = /** @type {HTMLButtonElement} */ (document.getElementById('closeModalBtn'));
+  btnClose.addEventListener('click', closeModal);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' || e.key === ' ') {
+      const modalStyle = /** @type {HTMLDivElement} */ (document.getElementById('custom-modal')).style;
+      if (modalStyle.display !== 'none') {
+        closeModal();
+        e.stopPropagation();
+      }
+    }
+  });
 
   updateData(); // Initial filter letter
   /*

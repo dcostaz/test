@@ -12,9 +12,6 @@ const _ = require('lodash');
 /** @type {UtilsConstructor} - Utils Class static members. */
 const Utils = require(path.join(__root, 'utils', 'utils.cjs'));
 
-/** @type {MangaConstructor} - Manga Class static members. */
-const Manga = require(path.join(__root, 'cls', 'manga.cjs'));
-
 class Hakuneko {
     /**
      * Constructor for MangaList class.
@@ -195,14 +192,14 @@ class Hakuneko {
 
         // Get the bookmarks from Hakuneko
         /** @type {Bookmark[]} - Bookmarks from Hakuneko. */
-        const bookmarks = await Hakuneko._getHakunekoBookmarks(bookmarksPathName);
+        const bookmarks = await Hakuneko.getHakunekoBookmarks(bookmarksPathName);
 
         // Overwrite bookmarks table in the database
         db.data.bookmarks = bookmarks;
 
         // Get the chaptermarks from Hakuneko
         /** @type {ChapterMark[]} - Chapter marks from Hakuneko. */
-        const chaptermarks = await Hakuneko._getHakunekoChaptermarks(chaptersPathName);
+        const chaptermarks = await Hakuneko.getHakunekoChaptermarks(chaptersPathName);
 
         // Overwrite chaptermarks table in the database
         db.data.chaptermarks = chaptermarks;
@@ -313,6 +310,34 @@ class Hakuneko {
     }
 
     /**
+     * Gets bookmarks from Hakuneko.
+     * @param {string} bookmarksPathName - The path to the bookmarks file.
+     * @returns {Promise<any[]>} A promise that resolves to an array of bookmarks.
+     * @example
+     * const bookmarks = await Hakuneko._getHakunekoBookmarks('path/to/bookmarks.json');
+     * @static
+     */
+    static async getHakunekoBookmarks(bookmarksPathName) {
+        const jsonData = await Hakuneko._loadJson(bookmarksPathName);
+
+        return jsonData || [];
+    }
+
+    /**
+     * Gets chapter marks from Hakuneko.
+     * @param {string} chaptersPathName - The path to the chapter marks file.
+     * @returns {Promise<any[]>} A promise that resolves to an array of chapter marks.
+     * @example
+     * const chapterMarks = await Hakuneko._getHakunekoChaptermarks('path/to/chapters.json');
+     * @static
+     */
+    static async getHakunekoChaptermarks(chaptersPathName) {
+        const jsonData = await Hakuneko._loadJson(chaptersPathName);
+
+        return jsonData || [];
+    }
+
+    /**
      * Checks if the Hakuneko bookmarks and chapter marks files are available.
      * @param {string} bookmarksPathName - The path to the bookmarks file.
      * @param {string} chaptersPathName - The path to the chapter marks file.
@@ -355,35 +380,6 @@ class Hakuneko {
             return;
         }
     }
-
-    /**
-     * Gets bookmarks from Hakuneko.
-     * @param {string} bookmarksPathName - The path to the bookmarks file.
-     * @returns {Promise<any[]>} A promise that resolves to an array of bookmarks.
-     * @example
-     * const bookmarks = await Hakuneko._getHakunekoBookmarks('path/to/bookmarks.json');
-     * @static
-     * @private
-     */
-    static async _getHakunekoBookmarks(bookmarksPathName) {
-        const jsonData = await Hakuneko._loadJson(bookmarksPathName);
-
-        return jsonData || [];
-    }
-
-    /**
-     * Gets chapter marks from Hakuneko.
-     * @param {string} chaptersPathName - The path to the chapter marks file.
-     * @returns {Promise<any[]>} A promise that resolves to an array of chapter marks.
-     * @example
-     * const chapterMarks = await Hakuneko._getHakunekoChaptermarks('path/to/chapters.json');
-     * @static
-     * @private
-     */
-    static async _getHakunekoChaptermarks(chaptersPathName) {
-        const jsonData = await Hakuneko._loadJson(chaptersPathName);
-
-        return jsonData || [];
-    }
 };
 module.exports = Hakuneko;
+exports.Hakuneko = Hakuneko;

@@ -2605,6 +2605,126 @@ class Manga {
 
         return false;
     }
+
+    /**
+     * Update the manga chapter in all data sources.
+     * @param {string} key - The key of the manga to update.
+     * @param {number} newChapter - The new chapter number.
+     * @returns {Promise<void>}
+     * @async
+     */
+    async updateMangaChapter(key, newChapter) {
+        if (!key || !newChapter) {
+            console.error('Invalid parameters provided to updateMangaChapter function.');
+            return;
+        }
+
+        // If hakuneko instance not available just return
+        if (!this.db || !this.hakuneko?.db) return;
+
+        // 1. Get manga data from manga.json to find hkey and hconnector.
+        await this.db.read();
+        const mangaData = this.db.data.hakuneko;
+        const mangaEntry = mangaData ? Object.values(mangaData).find(m => m.key === key) : undefined;
+
+        if (!mangaEntry) {
+            console.error(`Manga with key ${key} not found in manga.json.`);
+            return;
+        }
+
+        const { hkey, hconnector } = mangaEntry;
+        const newChapterID = `Chapter ${newChapter}.cbz`;
+
+        // 2. Update hakuneko.chaptermarks file.
+        const chaptermarksPath = this.settings.hakuneko.paths.chaptermarks;
+        try {
+            const chaptermarksData = await Hakuneko.getHakunekoChaptermarks(chaptermarksPath) || [];
+            let chaptermarkEntry = chaptermarksData.find(cm => cm.mangaID === hkey && cm.connectorID === hconnector);
+
+            if (chaptermarkEntry) {
+                chaptermarkEntry.chapterID = newChapterID;
+                chaptermarkEntry.chapterTitle = newChapterID;
+            } else {
+                chaptermarksData.push({
+                    connectorID: hconnector,
+                    mangaID: hkey,
+                    chapterID: newChapterID,
+                    chapterTitle: newChapterID
+                });
+            }
+            await fs.writeFile(chaptermarksPath, JSON.stringify(chaptermarksData, null, 2));
+        } catch (error) {
+            console.error(`Failed to update ${chaptermarksPath}:`, error);
+        }
+
+        // 3. Update hakuneko.json.
+        try {
+            await this.hakuneko.db.read();
+            /**
+             * @type {{ chaptermarks: ChapterMark[], hakuneko: Record<string, { hchapter?: number }> }} - Reference to [Hakuneko] [db] database
+             */
+            const { chaptermarks, hakuneko } = this.hakuneko.db.data;
+
+            // 3.1 Update chaptermarks table.
+            /** @type {ChapterMark} */
+            let hakunekoChaptermarkEntry = /** @type {ChapterMark} */ (chaptermarks.find(cm => cm.mangaID === hkey && cm.connectorID === hconnector));
+            if (hakunekoChaptermarkEntry) {
+                hakunekoChaptermarkEntry.chapterID = newChapterID;
+                hakunekoChaptermarkEntry.chapterTitle = newChapterID;
+            } else {
+                chaptermarks.push({
+                    connectorID: hconnector,
+                    mangaID: hkey,
+                    chapterID: newChapterID,
+                    chapterTitle: newChapterID
+                });
+            }
+
+            // 3.2 Update hakuneko table's hchapter.
+            const hakunekoEntry = hakuneko[key];
+            if (hakunekoEntry && 'hchapter' in hakunekoEntry) {
+                hakunekoEntry.hchapter = newChapter;
+            }
+            await this.hakuneko.db.write();
+        } catch (error) {
+            console.error('Failed to update hakuneko.json:', error);
+        }
+
+        // 4. Update manga.json.
+        try {
+            // Re-read manga.json to be safe.
+            await this.db.read();
+            /**
+             * @type {{ mangahakunekomatching: HakunekoEntry[], mangahakunekonotmatching: HakunekoEntry[], hakuneko: Record<string, mangaHakuneko> }} - Reference to [Manga] [db] database
+             */
+            const { mangahakunekomatching, mangahakunekonotmatching, hakuneko } = this.db.data;
+
+            /**
+             * Update the hchapter property of a manga entry.
+             * @param {HakunekoEntry} entry - The manga entry to update.
+             */
+            const updateHChapter = (entry) => {
+                if (entry && entry.key === key && 'hchapter' in entry) {
+                    entry.hchapter = newChapter;
+                }
+            };
+
+            mangahakunekomatching.forEach(updateHChapter);
+            mangahakunekonotmatching.forEach(updateHChapter);
+
+            // Also update in the hakuneko table if it exists there
+            const obj = Object.values(this.db.data.hakuneko).find(o => o.key === key);
+            if (obj && 'hchapter' in obj) {
+                obj.hchapter = newChapter;
+            }
+
+            await this.db.write();
+        } catch (error) {
+            console.error('Failed to update manga.json:', error);
+        }
+
+        console.log(`Successfully updated chapter for manga ${key} to ${newChapter}.`);
+    }
 };
 exports.Manga = Manga;
 module.exports = Manga;

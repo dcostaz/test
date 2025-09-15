@@ -178,8 +178,8 @@ async function getChapterList(record) {
             return [];
         }
 
-        // Sort files ascending to get the chapters in order
-        cbzFiles.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+        // Sort files descending to get the chapters in order
+        cbzFiles.sort((a, b) => b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' }));
 
         return cbzFiles;
     } catch (dirError) {
@@ -255,6 +255,13 @@ async function loadChapter(record, chapterFileName, isInitial = false) {
 
         const channel = isInitial ? 'initial-chapter-data' : 'chapter-loaded';
         cbzViewerWindow.webContents.send(channel, payload);
+
+        // Update hchapter in manga database only if not initial load and record exists
+        if ((!isInitial && record) || (record.hchapter === null)) {
+            await manga.updateMangaChapter(record.key, parseFloat(chapterNumber));
+            record.hchapter = parseFloat(chapterNumber);
+        }
+
         return true;
     }
     return false;
@@ -286,6 +293,12 @@ function openCbzViewer() {
     cbzViewerWindow.loadFile('viewer.html');
 
     cbzViewerWindow.on('closed', () => {
+        // Notify main window that viewer window is closed
+        if (currentViewerRecord) {
+            mainWindow.webContents.send('cbz-viewer-closed', currentViewerRecord.key, currentViewerRecord.hchapter);
+        }
+
+        // Clean up references
         cbzViewerWindow = null;
         currentViewerRecord = null;
     });
@@ -309,9 +322,12 @@ ipcMain.handle('get-initial-chapter', async (event) => {
     let selectedChapter;
     // 1. Try to find hchapter
     if (record.hchapter) {
-        const hchapterFile = `Chapter ${record.hchapter}.cbz`;
-        if (chapterList.includes(hchapterFile)) {
-            selectedChapter = hchapterFile;
+        const found = chapterList.find(name => {
+            const match = name.match(/(\d+(\.\d+)?)/);
+            return match && parseFloat(match[0]) === record.hchapter;
+        });
+        if (found) {
+            selectedChapter = found;
         }
     }
 

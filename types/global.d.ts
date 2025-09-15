@@ -30,6 +30,7 @@ declare global {
       syncReadingList: (...args: IpcApiArgs) => IpcApiResponse<void>;
       resolveUnmatchedEntry: IpcApiResolveUnmatchedEntry;
       removeUnmatchedEntry: IpcApiRemoveUnmatchedEntry;
+      updateMangaChapter: IpcApiUpdateMangaChapter;
 
       onReloadMangaUpdatesReadingListDone: (callback: IpcCallback) => () => void;
       onReloadMangaUpdatesReadingListFailed: (callback: IpcCallback) => () => void;
@@ -43,10 +44,13 @@ declare global {
       onResolveUnmatchedEntryFailed: (callback: resolveUnmatchedEntryCallback) => () => void;
       onRemoveUnmatchedEntryDone: (callback: removeUnmatchedEntryCallback) => () => void;
       onRemoveUnmatchedEntryFailed: (callback: removeUnmatchedEntryCallback) => () => void;
+      onUpdateMangaChapterDone: (callback: updateMangaChapterCallback) => () => void;
+      onUpdateMangaChapterFailed: (callback: updateMangaChapterCallback) => () => void;
 
       openReviewWindow: () => void;
       toggleDevTools: () => void;
       openCbzViewer: (...args: IpcApiArgsOpenCbzViewer) => IpcApiResponse<void>;
+      onCBZViewerClosed: (callback: cbzViewerClosedCallback) => () => void;
     },
     viewerAPI: {
       getInitialChapter: () => IpcApiResponse<void>;
@@ -67,6 +71,13 @@ declare global {
     chapterList: string[];
     currentIndex: number;
   }) => void;
+
+  /**
+   * Callback type for when the CBZ viewer is closed.
+   *
+   * @param currentViewerRecord - The manga record that was being viewed when the CBZ viewer was closed.
+   */
+  type cbzViewerClosedCallback = (key: string, chapterNumber: number) => void;
 
   /**
    * Arguments for opening the CBZ viewer.
@@ -104,6 +115,14 @@ declare global {
    * @param id - The ID of the unmatched entry.
    */
   type removeUnmatchedEntryCallback = (id: number) => void;
+
+  /**
+   * Callback type for updating a manga chapter.
+   *
+   * @param key - The unique key of the manga entry to update.
+   * @param newChapter - The new chapter number to set.
+   */
+  type updateMangaChapterCallback = (key: string, newChapter: number) => void;
 
   /**
    * Represents the arguments for searching a Manga Updates series by ID.
@@ -179,6 +198,23 @@ declare global {
    * @returns A promise that resolves when the operation is complete.
    */
   type IpcApiRemoveUnmatchedEntry = (...args: IpcApiArgsRemoveUnmatchedEntry) => IpcApiResponse<void>;
+
+  /**
+   * Represents the arguments for updating a manga chapter.
+   *
+   * @property key - The unique key of the manga entry to update.
+   * @property newChapter - The new chapter number to set.
+   */
+  type IpcApiArgsUpdateMangaChapter = [key: string, newChapter: number];
+
+  /**
+   * IPC API method for updating a manga chapter.
+   *
+   * This method accepts arguments defined in `IpcApiArgsUpdateMangaChapter` and performs the update of the manga chapter.
+   * @param args - The arguments for the API method.
+   * @returns A promise that resolves when the operation is complete.
+   */
+  type IpcApiUpdateMangaChapter = (...args: IpcApiArgsUpdateMangaChapter) => IpcApiResponse<void>;
 
   /**
    * IPC configuration interface for defining the structure and metadata of IPC methods.

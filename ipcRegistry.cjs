@@ -57,6 +57,17 @@ const ipcRegistry = {
         validateArgs: (id) => true,
         requiresResponse: false,
         callbackType: '(id: number) => void'
+    },
+    'update-manga-chapter': {
+        context: 'api',
+        log: true,
+        type: "IpcApiUpdateMangaChapter",
+        parameterType: "IpcApiArgsUpdateMangaChapter",
+        parameters: "[key: string, newChapter: number]",
+        name: 'updateMangaChapter',
+        validateArgs: () => true,
+        requiresResponse: false,
+        callbackType: '(key: string, newChapter: number) => void'
     }
 };
 
@@ -141,6 +152,10 @@ typeDocs
     .set('IpcApiRemoveUnmatchedEntry', '/**\n * IPC API method for removing an unmatched manga entry.\n *\n * This method accepts arguments defined in `IpcApiArgsRemoveUnmatchedEntry` and performs the removal of the unmatched entry.\n *\n * @param args - The arguments for the API method.\n * @returns A promise that resolves when the operation is complete.\n */')
     .set('IpcApiArgsRemoveUnmatchedEntry', '/**\n * Represents the arguments for removing an unmatched manga entry.\n *\n * @property id - The ID of the unmatched entry.\n */')
     .set('removeUnmatchedEntryCallback', '  /**\n   * Callback type for removing unmatched entries.\n   *\n   * @param id - The ID of the unmatched entry.\n   */')
+
+    .set('IpcApiUpdateMangaChapter', '/**\n * IPC API method for updating a manga chapter.\n *\n * This method accepts arguments defined in `IpcApiArgsUpdateMangaChapter` and performs the update of the manga chapter.\n *\n * @param args - The arguments for the API method.\n * @returns A promise that resolves when the operation is complete.\n */')
+    .set('IpcApiArgsUpdateMangaChapter', '/**\n * Represents the arguments for updating a manga chapter.\n *\n * @property key - The unique key of the manga entry to update.\n * @property newChapter - The new chapter number to set.\n */')
+    .set('updateMangaChapterCallback', '  /**\n   * Callback type for updating a manga chapter.\n   *\n   * @param key - The unique key of the manga entry to update.\n   * @param newChapter - The new chapter number to set.\n   */')
 
     .set('IpcApiSearchMangaUpdatesSerieByID', '/**\n * IPC API method for searching a Manga Updates series by its unique ID.\n *\n * This method accepts arguments defined in `IpcApiArgsSearchMangaUpdatesSerieByID` and returns a promise\n * that resolves to a `MangaUpdatesSeriesResultEntry` object containing the series details.\n *\n * @param args - The arguments for the API method.\n * @returns A promise that resolves to the series details.\n */')
     .set('IpcApiArgsSearchMangaUpdatesSerieByID', '/**\n * Represents the arguments for searching a Manga Updates series by ID.\n *\n * @property seriesID - The unique identifier of the manga series to search for.\n * @property useCache - Optional boolean indicating whether to use cached data if available.\n */')
