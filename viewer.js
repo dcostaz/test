@@ -25,13 +25,13 @@ window.addEventListener('DOMContentLoaded', () => {
      */
     function applyZoomToImage(img) {
         if (zoom === 100) {
-            img.style.width = '100%';
+            img.style.width = ''; // Revert to CSS default
             img.style.maxWidth = '100%';
         } else {
             if (lockedBaseWidth) {
                 const newPixelWidth = lockedBaseWidth * (zoom / 100);
                 img.style.width = `${newPixelWidth}px`;
-                img.style.maxWidth = 'none';
+                img.style.maxWidth = 'none'; // Allow image to exceed container width
             }
         }
     }
@@ -48,7 +48,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (oldZoom === 100 && zoom !== 100) {
             const firstImage = imageContainer.querySelector('img');
             if (firstImage) {
-                lockedBaseWidth = firstImage.clientWidth;
+                // Lock width based on the image's actual size, not its rendered size.
+                lockedBaseWidth = firstImage.naturalWidth;
             }
         }
 
@@ -85,10 +86,9 @@ window.addEventListener('DOMContentLoaded', () => {
             const img = document.createElement('img');
             img.src = imageSrc;
             img.alt = 'Manga Page';
-            img.style.width = '100%';
-            img.style.maxWidth = '100%';
 
             img.onload = () => {
+                // Apply initial zoom state once the image is loaded
                 applyZoomToImage(img);
             };
 
