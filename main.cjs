@@ -280,7 +280,7 @@ function openCbzViewer() {
     const { height } = primaryDisplay.workAreaSize;
 
     cbzViewerWindow = new BrowserWindow({
-        width: 800,
+        width: 850,
         height: height,
         title: 'CBZ Viewer',
         webPreferences: {

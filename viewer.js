@@ -26,7 +26,7 @@ window.addEventListener('DOMContentLoaded', () => {
     function applyZoomToImage(img) {
         if (zoom === 100) {
             img.style.width = ''; // Revert to CSS default
-            img.style.maxWidth = '100%';
+            img.style.maxWidth = '800px';
         } else {
             if (lockedBaseWidth) {
                 const newPixelWidth = lockedBaseWidth * (zoom / 100);
@@ -49,7 +49,7 @@ window.addEventListener('DOMContentLoaded', () => {
             const firstImage = imageContainer.querySelector('img');
             if (firstImage) {
                 // Lock width based on the image's actual size, not its rendered size.
-                lockedBaseWidth = firstImage.naturalWidth;
+                lockedBaseWidth = 800;
             }
         }
 
@@ -103,8 +103,8 @@ window.addEventListener('DOMContentLoaded', () => {
         chapterInfo.textContent = `${data.chapter} (${currentIndex + 1}/${chapterList.length})`;
 
         // Update button states
-        prevBtn.disabled = currentIndex === 0;
-        nextBtn.disabled = currentIndex === chapterList.length - 1;
+        prevBtn.disabled = currentIndex === chapterList.length - 1;
+        nextBtn.disabled = currentIndex === 0;
 
         renderChapterList();
     }
@@ -133,33 +133,23 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     window.viewerAPI.onInitialChapterData((data) => {
+        imageContainer.style = 'display: none';
         render(data);
+
+        imageContainer.style = '';
     });
 
     window.viewerAPI.onChapterLoaded((data) => {
+        imageContainer.style = 'display: none';
         render(data);
+
+        imageContainer.style = '';
     });
 
     /**
      * Helper that handles the previous chapter request.
      */
     const previousChapter = () => {
-        if (currentIndex > 0) {
-            // Clear existing images
-            imageContainer.innerHTML = '';
-            imageContainer.scrollTop = 0;
-
-            prevBtn.disabled = true;
-            nextBtn.disabled = true;
-
-            window.viewerAPI.getChapter(currentIndex - 1);
-        }
-    };
-
-    /**
-     * Helper that handles the next chapter request.
-     */
-    const nextChapter = () => {
         if (currentIndex < chapterList.length - 1) {
             // Clear existing images
             imageContainer.innerHTML = '';
@@ -169,6 +159,22 @@ window.addEventListener('DOMContentLoaded', () => {
             nextBtn.disabled = true;
 
             window.viewerAPI.getChapter(currentIndex + 1);
+        }
+    };
+
+    /**
+     * Helper that handles the next chapter request.
+     */
+    const nextChapter = () => {
+        if (currentIndex > 0) {
+            // Clear existing images
+            imageContainer.innerHTML = '';
+            imageContainer.scrollTop = 0;
+
+            prevBtn.disabled = true;
+            nextBtn.disabled = true;
+
+            window.viewerAPI.getChapter(currentIndex - 1);
         }
     };
 
