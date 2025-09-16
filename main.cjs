@@ -166,10 +166,27 @@ let currentViewerRecord;
  * Gets a list of chapter files for a given manga record.
  * @param {mangaHakuneko} record - The manga record.
  * @returns {Promise<string[]>} A promise that resolves with a sorted list of chapter filenames.
+ * @async
+ * @public
  */
 async function getChapterList(record) {
+    if(!record || !manga.db || !manga.db.data)
+        return [];
+
+    // Ensure the manga database is loaded
+    await manga.db.read();
+
+    /** @type {mangaListDirectoryEntry[]} */
+    const directories = manga.db.data.directories || [];
+
+    const mangaDirectoryEntry = directories.find(dir => dir.key === record.key);
+    if (!mangaDirectoryEntry) {
+        console.error(`Manga directory not found for key: ${record.key}`);
+        return [];
+    }
+
     try {
-        const mangaFolderPath = path.join(manga.path, record.hfolder);
+        const mangaFolderPath = path.join(manga.path, mangaDirectoryEntry.name);
         const files = await fs.readdir(mangaFolderPath);
         const cbzFiles = files.filter(file => path.extname(file).toLowerCase() === '.cbz');
 
@@ -192,16 +209,39 @@ async function getChapterList(record) {
  * Gets the data for a specific chapter.
  * @param {mangaHakuneko} record - The manga record.
  * @param {string} chapterFileName - The filename of the chapter to load.
- * @returns {Promise<{images: string[], chapter: string} | null>}
+ * @returns {Promise<{images: string[], chapter: string} | null>} A promise that resolves with the chapter data or null if an error occurs.
+ * @async
+ * @public
  */
 async function getChapterData(record, chapterFileName) {
-    let cbzPath = path.join(manga.path, record.hfolder, chapterFileName);
+    if(!record || !manga.db || !manga.db.data)
+        return null;
+
+    // Ensure the manga database is loaded
+    await manga.db.read();
+
+    /** @type {mangaListDirectoryEntry[]} */
+    const directories = manga.db.data.directories || [];
+
+    const mangaDirectoryEntry = directories.find(dir => dir.key === record.key);
+    if (!mangaDirectoryEntry) {
+        console.error(`Manga directory not found for key: ${record.key}`);
+        return null;
+    }
+
+    /**
+     * Full path to the CBZ file.
+     * @type {string}
+     */
+    let cbzPath = path.join(manga.path, mangaDirectoryEntry.name, chapterFileName);
 
     try {
         const data = await fs.readFile(cbzPath);
         const zip = await JSZip.loadAsync(data);
-        const imagePromises = [];
         const sortedFiles = Object.keys(zip.files).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+
+        /** @type {Promise<string>[]} */
+        const imagePromises = [];
 
         for (const fileName of sortedFiles) {
             const file = zip.files[fileName];
@@ -214,8 +254,16 @@ async function getChapterData(record, chapterFileName) {
             }
         }
 
+        /**
+         * List of image data.
+         * @type {string[]}
+         */
         const images = await Promise.all(imagePromises);
 
+        /**
+         * Object containing chapter data.
+         * @type {{images: string[], chapter: string}}
+         */
         return {
             images: images,
             chapter: chapterFileName

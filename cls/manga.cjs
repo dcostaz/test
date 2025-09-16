@@ -896,26 +896,34 @@ class Manga {
         if (typeof readingItem !== 'object' || readingItem === null || Object.keys(readingItem).length === 0)
             return Object.create(null);
 
-        return {
-            record: {
-                series: {
-                    id: readingItem.record.series.id,
-                    url: readingItem.record.series.url,
-                    title: readingItem.record.series.title
+        let returnObj;
+        try {
+            returnObj = {
+                record: {
+                    series: {
+                        id: readingItem.record.series.id,
+                        url: readingItem.record.series.url,
+                        title: readingItem.record.series.title
+                    },
+                    list_id: readingItem.record.list_id,
+                    status: {
+                        chapter: readingItem.record.status.chapter,
+                        volume: readingItem.record.status.volume
+                    }
                 },
-                list_id: readingItem.record.list_id,
-                status: {
-                    chapter: readingItem.record.status.chapter,
-                    volume: readingItem.record.status.volume
+                metadata: {
+                    series: {
+                        latest_chapter: readingItem.metadata.series?.latest_chapter || NaN
+                    },
+                    user_rating: readingItem.metadata.user_rating
                 }
-            },
-            metadata: {
-                series: {
-                    latest_chapter: readingItem.metadata.series?.latest_chapter || NaN
-                },
-                user_rating: readingItem.metadata.user_rating
             }
+        } catch (error) {
+            console.error('Error building reading item object:', error);
+            return Object.create(null);
         }
+
+        return returnObj;
     };
 
     /** Dry function to build reviewItemObj
@@ -1017,6 +1025,12 @@ class Manga {
         // Prepare list of series in review
         /** @type {mangaSerieReviewitemObj[]} */
         const reviewList = readingItems.reviewList;
+
+        if (!readingItem || Object.keys(readingItem).length === 0 || !readingItem.record || !readingItem.record.series) {
+            console.log('Invalid reading item provided to getReadingListSerieDetail function.');
+            console.log('Reading item:', readingItems.readingItem?.record?.series?.title);
+            return { status: Enums.GET_READINGLIST_SERIEDETAIL_STATUS.ERROR };
+        }
 
         // Get the series title and normalize it
         let seriesTitle = readingItem.record.series.title;
@@ -2449,49 +2463,91 @@ class Manga {
         // Get the entry index from [mangalistDB.data.readinglist] table by ID
         const idxMURL = mangalistReadingList.findIndex(entry => entry.record.series.id === id);
 
-        if (selectedReadingItem && idxMURL === -1) {
-            // Use passed entry, if empty, assign a empty object
-            /** @type {mangaupdatesReadingList} */
-            let readingItemEntry = mangalistReadingList.find(entry => entry.record.series.id === id) || Object.create(null);
+        // If the entry is not found in the MangaUpdates reading list, we need to add it
+        if (idxMURL === -1) {
+            // If the MangaUpdates instance is not available, notify renderer process that it could not be resolved
+            if (!this.mangaupdates || !(this.mangaupdates instanceof MangaUpdates)) {
+                console.error('MangaUpdates instance is not available');
+                return false;
+            }
 
-            /**
-             * List of manga series from Hakuneko that are available in MangaUpdates
-             * @type {Array<{ id: number, title: string, availableSeries: MangaUpdatesSearchSeriesResultEntry[] }>}
-             */
+            // 1 - Get the series detail from MangaUpdates by ID
+            /** @type {MangaUpdatesSeriesResultEntry} */
+            const seriesEntry = await this.mangaupdates.getSerieDetail(id);
+
+            // If the entry was not found, notify renderer process that it could not be resolved
+            if (!seriesEntry || Object.keys(seriesEntry).length === 0) {
+                console.warn(`Could not find the MangaUpdates series detail for ID: ${id}`);
+                return false;
+            }
+
+            // 2 - Create a new reading list entry
+            const readingListTempEntry = {
+                record: {
+                    series: {
+                        id: seriesEntry.series_id,
+                        url: seriesEntry.url,
+                        title: seriesEntry.title
+                    },
+                    list_id: 0, // Default list ID
+                    status: {
+                        chapter: 1,
+                        volume: 1
+                    }
+                },
+                metadata: {
+                    series: {
+                        latest_chapter: 1
+                    },
+                    user_rating: 0
+                }
+            }
+
+            // Cast to mangaupdatesReadingList type
+            readingItemEntry = /** @type {mangaupdatesReadingList} */ (readingListTempEntry);
+
+            // 3 - Add the temporary reading item entry to the MangaList reading list
+            // This ensures that the entry is available for further processing
+            // It will be removed from the review list once the reading list is refreshed from MangaUpdates
+            mangalistDB.data.readinglist.push(readingItemEntry);
+
+            // Write changes to the database
+            await mangalistDB.write();
+
+            // Make sure it's up to date
+            await mangalistDB.read();
+
+            // 4 - Get existing hakuneko to manga updates list entries
+            // Initialize the hakuneko to manga updates list
+            /** @type {Array<{ id: number, title: string, availableSeries: MangaUpdatesSearchSeriesResultEntry[] }>} */
             const hakunekoToMangaUpdatesList = db.data.hakunekotomangaupdateslist || [];
 
-            // Get the first found series. In theory, there should only be one that is an exact match
-            const foundSerie = selectedReadingItem[0];
-
+            // 5 - Add the un resolved entry to the hakuneko to manga updates list
             hakunekoToMangaUpdatesList.push({
-                id: foundSerie.record.series_id,
-                title: foundSerie.record.title,
-                availableSeries: selectedReadingItem,
+                id: seriesEntry.series_id,
+                title: seriesEntry.title,
+                availableSeries: [], // Not needed here
             });
 
             // Write changes to the database
             await db.write();
 
-            // Add series to the MangaUpdates reading list
+            // 6 - Add series to the MangaUpdates reading list
             await this.addSerieToMangaUpdatesReadingList(hakunekoToMangaUpdatesList);
 
             // Wait for a moment
             await Utils.wait(1000);
 
-            if (this.mangaupdates && this.mangaupdates instanceof MangaUpdates) {
-                // Get the reading item entry from the MangaUpdates reading list
-                readingItemEntry = await this.mangaupdates.getListSeriesItem(id);
-
-                // Add the reading item entry to the MangaList reading list
-                mangalistReadingList.push(readingItemEntry);
-
-                // Write changes to the database
-                await mangalistDB.write();
-            }
 
         } else {
             // Get the entry index from [unmatchedfromreadinglist] table by ID
             readingItemEntry = mangalistReadingList[idxMURL];
+        }
+
+        // If the entry was not found, notify renderer process that it could not be resolved
+        if (!readingItemEntry || Object.keys(readingItemEntry).length === 0) {
+            console.warn(`Could not find the MangaUpdates reading list entry for ID: ${id}`);
+            return false;
         }
 
         // If selectedReadingItem is not present
@@ -2524,22 +2580,25 @@ class Manga {
         // If we have a directory, add the series to the database
         if (status === Enums.GET_READINGLIST_SERIEDETAIL_STATUS.SUCCESS && (serieDetail && Object.keys(serieDetail).length !== 0)) {
             // 1 - Add the serie to the [Manga] database [readinglist] table
-            mangaReadingList.push(serieDetail);
-
-            // 2 - Remove reading list entry from [unmatchedfromreadinglist] table
-            const serieID = readingItemEntry.record.series.id;
-
-            // If it was added to the reading list successfully, remove it from the review list, if it exists
-            if (mangaReadingList.find(obj => obj.id === serieID)) {
-                // Remove entry from unmatchedfromreadinglist
-                const idx = mangaReviewList.findIndex(entry => entry.id === id);
-                if (idx !== -1) {
-                    mangaReviewList.splice(idx, 1);
-                }
-            }
+            this.db.data.readinglist.push(serieDetail);
 
             // Ensure all changes are written to the database
-            await db.write();
+            await this.db.write();
+
+            // 2 - Remove reading list entry from [unmatchedfromreadinglist] table
+            // Get the entry index from unmatchedfromreadinglist by ID
+            // If it was added to the reading list successfully, remove it from the review list, if it exists
+            if (mangaReadingList.find(obj => obj.id === id)) {
+                // Remove entry from unmatchedfromreadinglist
+                const idx = mangaReviewList.findIndex(entry => entry.id === id);
+
+                if (idx !== -1) {
+                    this.db.data.unmatchedfromreadinglist.splice(idx, 1);
+
+                    // Ensure all changes are written to the database
+                    await this.db.write();
+                }
+            }
 
             // Log message
             console.log(Manga.createLogMessage(Manga.MangaReadingListTemplate, {

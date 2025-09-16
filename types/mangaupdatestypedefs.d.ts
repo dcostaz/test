@@ -157,10 +157,6 @@ interface MangaUpdatesSeriesResultEntry extends objectBase {
   category_recommendations: Recommendation[];
   rank: Rank;
   last_updated: TimestampInfo;
-  admin: {
-    added_by: AddedBy;
-    approved: boolean;
-  };
 }
 
 
