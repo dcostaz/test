@@ -275,7 +275,13 @@ class Manga {
                     existingNames.add(dir.name);
                 }
             }
-
+            /*            for (const dir of existingDirectories) {
+                            if ((modifiedNames.size === 0 || !modifiedNames.has(dir.name)) && !removedEntries.has(dir.name)) {
+                                filteredExistingDirectories.push(dir);
+                                existingNames.add(dir.name);
+                            }
+                        }
+            */
             // Filter entries in a single pass.
             // This will filter out entries that are not directories, already exist in existingDirectories,
             // or have been modified or removed.
@@ -656,8 +662,14 @@ class Manga {
      */
     static MangaReadingListTemplate = Object.freeze('{prefix}ID: {id}, TITLE: {title}, ALIAS: {alias}, DIRECTORY: {directory}{sufix}');
 
-    /** Start process to find new series
-     * Then add them to the [Manga] database
+    /** 
+     * Start process to find new series by scraping [MangaList] mangaupdates reading list
+     * Then add them to the [Manga] reading list
+     * It will skip series that are already in the reading list
+     * It will also add series to the review list if it cannot find a match
+     * 
+     * This handles the primary scenario for adding new series without user intervention
+     * @this {Manga}
      * @returns {Promise<void>}
      * @example
      *      // With the intance of Manga class
@@ -2383,6 +2395,7 @@ class Manga {
 
     /**
      * Get the review list for Manga
+     * @this {Manga}
      * @returns {Promise<mangaSerieReviewitemObj[]>}
      * @async
      */
@@ -2410,78 +2423,187 @@ class Manga {
 
     /** 
      * Resolve reading list items in review
+     * The selectedEntry is the option chosen by the user from the review list resolve or serie resolve action(s)
+     * 
+     * This function differs from the addNewSeries function, as we need to handle the case where the entry is not found in:
+     * - the MangaUpdates reading list [MangaList] [readinglist]
+     *
+     * Also note that we do not refresh the MangaUpdates reading list here, as the user may be in the process of resolving multiple entries
+     * And we need to be moderate in our requests to MangaUpdates to avoid hitting their rate limits, especially pulling the entire reading list again
+     * That is why we use the cached data, and only refresh it when the user explicitly requests it
+     * 
+     * This function is used in two scenarios:
+     * 1. The user is resolving an unmatched entry from the review list
+     * 2. The user is resolving a series that is not found in [Manga] [readinglist] but is found in [Manga] [hakuneko]
+     * In both cases, we need to:
+     * - Add the series to the MangaUpdates reading list if not already present
+     * - Add the series to the Manga reading list
+     * - Remove the entry from the review list
+     * 
+     * Note: The series ID is used as the unique identifier to reference series in MangaUpdates series
+     *       And the directory key is used as the unique identifier for all local data
+     *
+     * Some of the data dependency flows are:
+     *   (top) [Manga] Manga reading list <--- [MangaList] MangaUpdates reading list (aggregates directories with series context)
+     *                                     ^   (the series ID is used as the unique identifier for MangaUpdates series)
+     *                                     |
+     *                                     |-- [Manga] Manga directories (bottom)
+     *                                         (provides the series existence and naming context, also the last chapter available)
+     *                                         (the key is unique, and used across all database except for MangaList, and is a "slug" of the directory name)
+     * 
+     *   (top) [Manga] [hakuneko] <--- [Manga] Manga reading list <--- [MangaList] MangaUpdates reading list (bottom)
+     *                             ^
+     *                             |-- [Hakuneko] Registry of Manga being followed
+     *                             |   (Keeps track of what chapter is currently being viewed and if there is an image present for the series)
+     *                             |   (The series image is stored locally, and the name is the key with a .jpg extension)
+     *                             |
+     *                             |-- [Manga] Manga directories (bottom)
+     * 
+     * @this {Manga}
      * @param {number} id
      * @param {mangaReviewItemObj} selectedEntry
-     * @param {MangaUpdatesSearchSeriesResultEntry[]} [selectedReadingItem]
      * @returns {Promise<boolean>}
      * @async
      */
-    async resolveUnmatchedEntry(id, selectedEntry, selectedReadingItem) {
-        // If the Hakuneko instance is not available, return an empty array
+    async resolveUnmatchedEntry(id, selectedEntry) {
+        // ➽ 0 - Make sure passed parameters are present and base data is up-to-date before proceeding
+
+        // ➤ 0.0 - Validate ID
+        if (!id || isNaN(id) || id === 0) {
+            console.error('Invalid ID provided for resolving unmatched entry.');
+            return false;
+        }
+        // ➤ 0.1 - Validate selectedEntry
+        if (!selectedEntry || typeof selectedEntry !== 'object' || !selectedEntry.key || !selectedEntry.title) {
+            console.error('Invalid selected entry provided for resolving unmatched entry.');
+            return false;
+        }
+
+        // ➤ 0.2 - To catch any new directories that may have been added since the last update
+        await this.updateDirectories([]);
+
+        // ➤ 0.3 - Check for MangaUpdates instance availability
+
+        // ➤➤ 0.3.0 - If the MangaUpdates instance is not available, notify renderer process that it could not be resolved
+        if (!this.mangaupdates || !(this.mangaupdates instanceof MangaUpdates)) {
+            console.error('MangaUpdates instance is not available');
+            return false;
+        }
+
+        // ➤➤ 0.3.1 - Get the MangaUpdates instance
+        /** @type {MangaUpdatesClass} - Reference to MangaUpdates instance. */
+        const mangaUpdatesInstance = this.mangaupdates;
+
+
+        // ➽ 1 - Prepare access to databases needed for processing
+        // We need access to both the Manga database and the MangaList database
+        // - The Manga database is used to update the reading list and remove the entry from the review list
+        // - The MangaList database is used to get the reading list and check if the entry is already present
+        //   and to add it if not
+
+        // ➤ 1.0 - If the Hakuneko instance is not available, return an empty array
         if (!this.db || !(this.db instanceof Low) || !this.mangalist?.db || !(this.mangalist.db instanceof Low)) {
             return false;
         }
 
-        // Assign instance db to local variable
+        // ➤ 1.1 - Assign instance db to local variable
+
+        // ➤➤ 1.1.0 - The use of db is reserved for read-only operation for the local class database
+        /** @type {Low<MangaDBDefaults>} - Reference to [Manga] database. */
         const db = this.db;
 
-        // Make sure it's up to date
+        // ➤➤ 1.1.1 - Make sure it's up to date
         await db.read();
 
-        /** @type {mangaListDirectoryEntry[]} - Existing directories from the database. */
+        // ➤➤ 1.1.2 - Get Manga directories from the database
+        /** @type {mangaListDirectoryEntry[]} - Reference to [Manga] [directories]. */
         const directories = db.data.directories;
 
-        /** Manga reading list
-         * @type {mangaReadingList[]} - Reference to [Manga] [readinglist] */
+        // ➤➤ 1.1.3 - Get Manga reading list from the database
+        /** @type {mangaReadingList[]} - Reference to [Manga] [readinglist]. */
         const mangaReadingList = db.data.readinglist ?? [];
 
-        /** Manga review list
-        * @type {mangaSerieReviewitemObj[]} - Reference to [Manga] [unmatchedfromreadinglist] */
+        // ➤➤ 1.1.4 - Get Manga hakuneko list from the database
+        /** @type {mangaSerieReviewitemObj[]} - Reference to [Manga] [unmatchedfromreadinglist]. */
         const mangaReviewList = db.data.unmatchedfromreadinglist ?? [];
 
-        /**
-         * Manga list database
-         * @type {Low} - Reference to [Manga] [mangalist] database
-         */
+        // ➤ 1.2 - Assign mangalist instance database to local variable
+
+        // ➤➤ 1.2.0 - The use of mangalistDB is reserved for read-only operation for the MangaList instance database
+        /** @type {Low<MangaListDBDefaults>} - Reference to [Manga]->[MangaList] database. */
         const mangalistDB = this.mangalist.db;
 
-        // Make sure it's up to date
+        // ➤➤ 1.2.1 - Make sure it's up to date
         await mangalistDB.read();
 
-        /**
-         * MangaList reading list
-         * @type {mangaupdatesReadingList[]} - Reference to [Manga] [readinglist] database
-         */
+        // ➤➤ 1.2.2 - Get MangaList reading list from the database
+        /** @type {mangaupdatesReadingList[]} - Reference to [MangaList] [readinglist]. */
         const mangalistReadingList = mangalistDB.data.readinglist ?? [];
 
-        /**
-         * Initialize reading item entry
-         * @type {mangaupdatesReadingList} - Reference to [Manga] [readinglist] database
-         */
+        // ➤ 1.3 - Validate that the reading list is available
+
+        // ➤➤ 1.3.0 - Initialize reading item entry
+        /** @type {mangaupdatesReadingList} - Reference to [Manga] [readinglist] database */
         let readingItemEntry = Object.create(null);
 
-        // Get the entry index from [mangalistDB.data.readinglist] table by ID
+
+        // ➽ 2 - Use the provided ID and selectedEntry to get a readingItemEntry for adding the new serie to [Manga] [readinglist]
+        // There are two scenarios here:
+        //
+        // 1. The serie ID is already in the MangaUpdates reading list [MangaList] [readinglist]
+        // In this case, we use it to assign the readingItemEntry directly from the MangaUpdates reading list
+        //
+        // 2. The serie ID is not in the MangaUpdates reading list [MangaList] [readinglist]
+        // In this case, we need to add it to the MangaUpdates reading list first
+        // Then we can use it to assign the readingItemEntry
+
+        // ➤ 2.0 - Validate that the reading list is available
+        if (!mangalistReadingList || !Array.isArray(mangalistReadingList)) {
+            console.error('MangaList reading list is not available');
+            return false;
+        }
+
+        // ➤ 2.1 - Before we start, we need to check if the serie ID is already registered in [Manga] [readinglist]
+        // If it is, there is most likely a duplicate serie with the same ID
+        // What we need to do is log a warning and abort the operation
+        // The user can then decide to remove the duplicate entry from the reading list
+        // and re-add the entry from the review list
+
+        // ➤➤ 2.1.0 - Get the entry index from [mangaDB.data.readinglist] table by ID
+        const idxMRL = mangaReadingList.findIndex(entry => entry.id === id);
+
+        // ➤➤ 2.1.1 - If the entry is found in the Manga reading list, log a warning and abort the operation
+        if (idxMRL !== -1) {
+            // ➤➤➤ 2.1.1.0 - Build a string with the details of the duplicate entries
+            const duplicateEntry = mangaReadingList[idxMRL];
+            const duplicateDetails = `ID: ${duplicateEntry.id}, Title: ${duplicateEntry.title}, Directory: ${duplicateEntry.directory || 'N/A'}`;
+
+            // ➤➤➤ 2.1.1.1 - Log a warning with the duplicate entry details
+            console.warn(`Manga series with ID: ${id} is already in the reading list`);
+            console.warn(`Duplicate entry details: ${duplicateDetails}`);
+
+            // ➤➤➤ 2.1.1.2 - Notify renderer process that it could not be resolved
+            return false;
+        }
+
+        // ➤ 2.2 - Now we can check if the serie ID is in the MangaUpdates reading list 
+
+        // ➤➤ 2.2.0 - Get the entry index from [mangalistDB.data.readinglist] table by ID
         const idxMURL = mangalistReadingList.findIndex(entry => entry.record.series.id === id);
 
-        // If the entry is not found in the MangaUpdates reading list, we need to add it
+        // ➤➤ 2.2.1 - If the entry is not found in the MangaUpdates reading list, we need to add it
         if (idxMURL === -1) {
-            // If the MangaUpdates instance is not available, notify renderer process that it could not be resolved
-            if (!this.mangaupdates || !(this.mangaupdates instanceof MangaUpdates)) {
-                console.error('MangaUpdates instance is not available');
-                return false;
-            }
-
-            // 1 - Get the series detail from MangaUpdates by ID
+            // ➤➤➤ 2.2.1.0 - Get the series detail from MangaUpdates by ID
             /** @type {MangaUpdatesSeriesResultEntry} */
-            const seriesEntry = await this.mangaupdates.getSerieDetail(id);
+            const seriesEntry = await mangaUpdatesInstance.getSerieDetail(id);
 
-            // If the entry was not found, notify renderer process that it could not be resolved
+            // ➤➤➤ 2.2.1.1 - If the entry was not found, notify renderer process that it could not be resolved
             if (!seriesEntry || Object.keys(seriesEntry).length === 0) {
                 console.warn(`Could not find the MangaUpdates series detail for ID: ${id}`);
                 return false;
             }
 
-            // 2 - Create a new reading list entry
+            // ➤➤➤ 2.2.1.2 - Create a new reading list entry
             const readingListTempEntry = {
                 record: {
                     series: {
@@ -2503,68 +2625,71 @@ class Manga {
                 }
             }
 
-            // Cast to mangaupdatesReadingList type
+            // ➤➤➤ 2.2.1.3 - Cast to mangaupdatesReadingList type
             readingItemEntry = /** @type {mangaupdatesReadingList} */ (readingListTempEntry);
 
-            // 3 - Add the temporary reading item entry to the MangaList reading list
-            // This ensures that the entry is available for further processing
-            // It will be removed from the review list once the reading list is refreshed from MangaUpdates
+            // ➤➤➤ 2.2.1.4 - Validate that the reading list is available
+            if (!mangalistDB.data.readinglist || !Array.isArray(mangalistDB.data.readinglist)) {
+                console.error('MangaList reading list is not available');
+                return false;
+            }
+
+            /**
+             *  ➤➤➤ 2.2.1.5 - Add the temporary reading item entry to the MangaList reading list
+             * This ensures that the entry is available for further processing
+             * It will be removed from the review list once the reading list is refreshed from MangaUpdates
+             */
             mangalistDB.data.readinglist.push(readingItemEntry);
 
-            // Write changes to the database
+            // ➤➤➤ 2.2.1.6 - Write changes to the database
             await mangalistDB.write();
 
-            // Make sure it's up to date
-            await mangalistDB.read();
-
-            // 4 - Get existing hakuneko to manga updates list entries
+            // ➤➤➤ 2.2.1.7 - Get existing hakuneko to manga updates list entries
             // Initialize the hakuneko to manga updates list
             /** @type {Array<{ id: number, title: string, availableSeries: MangaUpdatesSearchSeriesResultEntry[] }>} */
             const hakunekoToMangaUpdatesList = db.data.hakunekotomangaupdateslist || [];
 
-            // 5 - Add the un resolved entry to the hakuneko to manga updates list
-            hakunekoToMangaUpdatesList.push({
-                id: seriesEntry.series_id,
-                title: seriesEntry.title,
-                availableSeries: [], // Not needed here
-            });
+            // ➤➤➤ 2.2.1.8 - Add the un resolved entry to the hakuneko to local manga updates reading list
+            if (hakunekoToMangaUpdatesList && Array.isArray(hakunekoToMangaUpdatesList)) {
+                // ➤➤➤➤ 2.2.1.8.0 - Add entry to the update list for the API call
+                hakunekoToMangaUpdatesList.push({
+                    id: seriesEntry.series_id,
+                    title: seriesEntry.title,
+                    availableSeries: [], // Not needed here
+                });
 
-            // Write changes to the database
-            await db.write();
+                // ➤➤➤➤ 2.2.1.8.1 - Write changes to the database
+                await db.write();
 
-            // 6 - Add series to the MangaUpdates reading list
-            await this.addSerieToMangaUpdatesReadingList(hakunekoToMangaUpdatesList);
-
-            // Wait for a moment
-            await Utils.wait(1000);
-
-
-        } else {
-            // Get the entry index from [unmatchedfromreadinglist] table by ID
+                // ➤➤➤➤ 2.2.1.8.2 - Add series to the MangaUpdates reading list
+                await this.addSerieToMangaUpdatesReadingList(hakunekoToMangaUpdatesList);
+            }
+            // ➤➤➤ 2.2.1.9 - If the hakuneko to manga updates list is not available, notify renderer process that it could not be resolved
+            else {
+                console.error('Hakuneko to MangaUpdates list was not available during record creation');
+                return false;
+            }
+        }
+        // ➤ ➤➤ 2.2.1 - If the entry was found in the MangaUpdates reading list, use it to assign the readingItemEntry
+        else {
+            // ➤➤➤ 2.2.1.0 - Get the entry index from [unmatchedfromreadinglist] table by ID
             readingItemEntry = mangalistReadingList[idxMURL];
         }
 
-        // If the entry was not found, notify renderer process that it could not be resolved
+        // ➤ 2.3 - If a reading item entry was not found, notify renderer process that it could not be resolved
         if (!readingItemEntry || Object.keys(readingItemEntry).length === 0) {
-            console.warn(`Could not find the MangaUpdates reading list entry for ID: ${id}`);
+            console.warn(`Could not find or create the MangaUpdates reading list entry for ID: ${id}`);
             return false;
         }
 
-        // If selectedReadingItem is not present
-        if (!selectedReadingItem) {
-            // Get the entry index from [unmatchedfromreadinglist] table by ID if selectedReadingItem is not present
-            const idx = mangaReviewList.findIndex(entry => entry.id === id);
+        // ➽ 3 - Now we have all the data we need to proceed with adding the new serie to [Manga] [readinglist]
+        // We have:
+        // - The ID of the serie to add
+        // - The selected entry with the directory to use
+        // - The reading item entry from the MangaUpdates reading list
 
-            if (idx === -1) {
-                // If the entry was not found, notify renderer process that it could not be resolved
-                if (!selectedEntry) return false;
-            }
-            else {
-                // Get the entry from unmatchedfromreadinglist
-                readingItemEntry = mangaReviewList[idx].readingItem;
-            }
-        }
-
+        // ➤ 3.0 - Build the reading items object to pass to getReadingListSerieDetail function
+        // This object contains all the data needed to add the new serie to the reading list
         /** @type {mangaReadingItems} */
         const readingItems = {
             readingItem: readingItemEntry, // Reading list item from MangaUpdates reading list
@@ -2574,33 +2699,35 @@ class Manga {
             reviewList: mangaReviewList // List of series in review
         };
 
-        // Add serie to mangaupdatesreadinglist with chosenDirectory
+        // ➤➤ 3.1 - Add serie to mangaupdatesreadinglist with chosenDirectory
         const { status, serieDetail } = await this.getReadingListSerieDetail(readingItems);
 
-        // If we have a directory, add the series to the database
+        // ➤➤ 3.2 - If successful, add the series to the database
         if (status === Enums.GET_READINGLIST_SERIEDETAIL_STATUS.SUCCESS && (serieDetail && Object.keys(serieDetail).length !== 0)) {
-            // 1 - Add the serie to the [Manga] database [readinglist] table
+            // ➤➤➤ 3.2.0 - Add the serie to the [Manga] database [readinglist] table
             this.db.data.readinglist.push(serieDetail);
 
-            // Ensure all changes are written to the database
+            // ➤➤➤ 3.2.1 - Ensure all changes are written to the database
             await this.db.write();
 
-            // 2 - Remove reading list entry from [unmatchedfromreadinglist] table
+            // ➤➤➤ 3.2.2 - Remove reading list entry from [unmatchedfromreadinglist] table
             // Get the entry index from unmatchedfromreadinglist by ID
             // If it was added to the reading list successfully, remove it from the review list, if it exists
             if (mangaReadingList.find(obj => obj.id === id)) {
-                // Remove entry from unmatchedfromreadinglist
+                // ➤➤➤➤ 3.2.2.0 - Get the entry index from unmatchedfromreadinglist by ID
                 const idx = mangaReviewList.findIndex(entry => entry.id === id);
 
+                // ➤➤➤➤ 3.2.2.1 - If it was found, remove it from the review list
                 if (idx !== -1) {
+                    // ➤➤➤➤ 3.2.2.1.0 - Remove entry from unmatchedfromreadinglist
                     this.db.data.unmatchedfromreadinglist.splice(idx, 1);
 
-                    // Ensure all changes are written to the database
+                    // ➤➤➤➤ 3.2.2.1.1 - Remove entry from unmatchedfromreadinglist
                     await this.db.write();
                 }
             }
 
-            // Log message
+            // ➤➤➤ 3.2.3 - Log message
             console.log(Manga.createLogMessage(Manga.MangaReadingListTemplate, {
                 prefix: ''.concat('+', serieDetail.mangaupdatesTitleMatch, ' '),
                 id: serieDetail.id,
@@ -2610,9 +2737,15 @@ class Manga {
                 sufix: ' (Added to Manga Reading List)'
             }));
 
+            // ➤➤➤ 3.2.4 - Successfully added the series to the reading list
             return true;
         }
+        // ➤➤ 3.3 - If not successful, log an error
+        else {
+            console.error(`Failed to add the series with ID: ${id} to the Manga reading list`);
+        }
 
+        // ➤ 3.4 - If we reach here, something went wrong, so we return false
         return false;
     }
 

@@ -42,10 +42,10 @@ const ipcRegistry = {
         name: 'resolveUnmatchedEntry',
         type: "IpcApiResolveUnmatchedEntry",
         parameterType: "IpcApiArgsResolveUnmatchedEntry",
-        parameters: "[id: number, selectedEntry: mangaReviewItemObj, selectedReadingItem?: MangaUpdatesSearchSeriesResultEntry[]]",
-        validateArgs: (id, selectedEntry, selectedReadingItem) => true,
+        parameters: "[id: number, selectedEntry: mangaReviewItemObj]",
+        validateArgs: (id, selectedEntry) => true,
         requiresResponse: false,
-        callbackType: '(id: number, selectedEntry: mangaReviewItemObj, selectedReadingItem?: MangaUpdatesSearchSeriesResultEntry[]) => void'
+        callbackType: '(id: number, selectedEntry: mangaReviewItemObj) => void'
     },
     'remove-unmatched-entry': {
         context: 'api',
@@ -146,8 +146,8 @@ typeDocs
     .set('IpcCallback', '  /**\n   * Callback type for generic IPC events.\n   *\n   * @param args - Arguments passed from the IPC event.\n   */')
 
     .set('IpcApiResolveUnmatchedEntry', '/**\n * IPC API method for resolving an unmatched manga entry.\n *\n * This method accepts arguments defined in `IpcApiArgsResolveUnmatchedEntry` and performs the resolution of the unmatched entry.\n *\n * @param args - The arguments for the API method.\n * @returns A promise that resolves when the operation is complete.\n */')
-    .set('IpcApiArgsResolveUnmatchedEntry', '/**\n * Represents the arguments for resolving an unmatched manga entry.\n *\n * @property id - The ID of the unmatched entry.\n * @property selectedEntry - The selected review item object.\n * @property selectedReadingItem - The selected reading item object.\n */')
-    .set('resolveUnmatchedEntryCallback', '  /**\n   * Callback type for resolving unmatched entries.\n   *\n   * @param id - The ID of the unmatched entry.\n   * @param selectedEntry - The selected review item object.\n   * @param selectedReadingItem - The selected reading item object.\n   */')
+    .set('IpcApiArgsResolveUnmatchedEntry', '/**\n * Represents the arguments for resolving an unmatched manga entry.\n *\n * @property id - The ID of the unmatched entry.\n * @property selectedEntry - The selected review item object.\n */')
+    .set('resolveUnmatchedEntryCallback', '  /**\n   * Callback type for resolving unmatched entries.\n   *\n   * @param id - The ID of the unmatched entry.\n   * @param selectedEntry - The selected review item object.\n   */')
   
     .set('IpcApiRemoveUnmatchedEntry', '/**\n * IPC API method for removing an unmatched manga entry.\n *\n * This method accepts arguments defined in `IpcApiArgsRemoveUnmatchedEntry` and performs the removal of the unmatched entry.\n *\n * @param args - The arguments for the API method.\n * @returns A promise that resolves when the operation is complete.\n */')
     .set('IpcApiArgsRemoveUnmatchedEntry', '/**\n * Represents the arguments for removing an unmatched manga entry.\n *\n * @property id - The ID of the unmatched entry.\n */')

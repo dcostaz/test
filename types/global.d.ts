@@ -107,7 +107,7 @@ declare global {
    * @param selectedEntry - The selected review item object.
    * @param selectedReadingItem - The selected reading item object.
    */
-  type resolveUnmatchedEntryCallback = (id: number, selectedEntry: mangaReviewItemObj, selectedReadingItem?: MangaUpdatesSearchSeriesResultEntry[]) => void;
+  type resolveUnmatchedEntryCallback = (id: number, selectedEntry: mangaReviewItemObj) => void;
 
   /**
    * Callback type for removing unmatched entries.
@@ -170,7 +170,7 @@ declare global {
    * @property selectedEntry - The selected review item object.
    * @property selectedReadingItem - The selected reading item object.
    */
-  type IpcApiArgsResolveUnmatchedEntry = [id: number, selectedEntry: mangaReviewItemObj, selectedReadingItem?: MangaUpdatesSearchSeriesResultEntry[]];
+  type IpcApiArgsResolveUnmatchedEntry = [id: number, selectedEntry: mangaReviewItemObj];
 
   /**
    * IPC API method for resolving an unmatched manga entry.

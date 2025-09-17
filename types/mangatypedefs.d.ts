@@ -37,7 +37,7 @@ interface MangaClass {
   searchMangaUpdatesSerieByID: (id: number, useCache?: boolean) => Promise<MangaUpdatesSeriesResultEntry>;
   searchMangaUpdatesSerieByName: (seriesTitle: string, useCache?: boolean) => Promise<MangaUpdatesSearchSeriesResultEntry[]>;
 
-  resolveUnmatchedEntry: (id: number, selectedEntry: mangaReviewItemObj, selectedReadingItem?: MangaUpdatesSearchSeriesResultEntry) => Promise<boolean>;
+  resolveUnmatchedEntry: (id: number, selectedEntry: mangaReviewItemObj) => Promise<boolean>;
   removeUnmatchedEntry: (id: number) => Promise<boolean>;
 }
 
@@ -72,6 +72,12 @@ interface mangaListDirectoryEntry {
   lastChapter: number
 };
 
+interface MangaHakunekoToMangaUpdatesList {
+  id: number;
+  title: string;
+  availableSeries: MangaUpdatesSearchSeriesResultEntry[];
+}
+
 /**
  * Types used for fs.readdir
  */
@@ -95,6 +101,12 @@ type additionalPropertiesFields = string[];
 
 interface MangaDBDefaults extends DBDefaultData {
   directories: mangaListDirectoryEntry[];
+  readinglist: mangaReadingList[];
+  hakuneko: mangaHakuneko[];
+  mangahakunekomatching: mangaHakuneko[];
+  mangahakunekonotmatching: mangaHakuneko[];
+  unmatchedfromreadinglist: mangaSerieReviewitemObj[];
+  hakunekotomangaupdateslist: MangaHakunekoToMangaUpdatesList[];
 }
 
 /**
