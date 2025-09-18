@@ -52,10 +52,10 @@ class Hakuneko {
         const dbAdapter = new JSONFile(databaseDir);
 
         /** @type {HakunekoDBDefaults} - Default tables for the manga database. */
-        const dbDefaultData = { hakuneko: [], bookmarks: [], chaptermarks: [], mangaimages: [] };
+        const dbDefaultData = { hakuneko: Object.create(null), bookmarks: [], chaptermarks: [], mangaimages: [] };
 
         // Setup the connection db to the JSON settings file
-        /** @type {Low} - References the settings database. */
+        /** @type {Low<HakunekoDBDefaults>} - References the settings database. */
         const _db = new Low(dbAdapter, dbDefaultData);
 
         // If the db connection not setup, return null

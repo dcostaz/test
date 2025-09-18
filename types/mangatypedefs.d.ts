@@ -99,12 +99,14 @@ interface objectBase {
  */
 type additionalPropertiesFields = string[];
 
+type MangaHakunekoMatching = { key: string, id?: number };
+
 interface MangaDBDefaults extends DBDefaultData {
   directories: mangaListDirectoryEntry[];
   readinglist: mangaReadingList[];
-  hakuneko: mangaHakuneko[];
-  mangahakunekomatching: mangaHakuneko[];
-  mangahakunekonotmatching: mangaHakuneko[];
+  hakuneko: { [key: string]: mangaHakuneko };
+  mangahakunekomatching: MangaHakunekoMatching[];
+  mangahakunekonotmatching: MangaHakunekoMatching[];
   unmatchedfromreadinglist: mangaSerieReviewitemObj[];
   hakunekotomangaupdateslist: MangaHakunekoToMangaUpdatesList[];
 }

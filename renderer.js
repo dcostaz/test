@@ -345,12 +345,22 @@ class MangaColumn {
                   await window.api.resolveUnmatchedEntry(resultEntry.series_id, selectionObj);
                   this.closeModal();
                   MangaColumn.setAllDisabled(true);
-                  await window.api.reloadHakunekoList();
+                  //await window.api.reloadHakunekoList();
                   const container = /** @type {HTMLDivElement} */ (document.getElementById('records-container'));
                   container.innerHTML = ''; // Clear existing records
                 }; // btn.onclick
                 li.appendChild(document.createTextNode(' ')); // Add space before button
                 li.appendChild(btn);
+
+                // Prepare hover text information
+                const selectHelpInfo = Object.entries(selectionObj).map(([key, value]) => `${key.toUpperCase()}: ${value}`).join('\n');
+
+                // Add an information symbol for hover text
+                const infoSymbol = document.createElement('span');
+                infoSymbol.style = 'font-size:0.9em; color:gray; margin-left:4px; cursor: help;';
+                infoSymbol.textContent = ' ℹ️';
+                infoSymbol.title = 'Direct match by title'.concat('\n', `ID: ${result.record.series_id}`, '\n', selectHelpInfo);
+                li.appendChild(infoSymbol);
               } // if (li.textContent === resultEntry.title)
             }); // Array.from(ul.querySelectorAll('li')).forEach
           } // if (ul)
@@ -395,7 +405,7 @@ class MangaColumn {
         // Close the modal, disable all buttons and refresh the list
         this.closeModal();
         MangaColumn.setAllDisabled(true);
-        await window.api.reloadHakunekoList();
+        //await window.api.reloadHakunekoList();
 
         // Get the records container and clear the div
         const container = /** @type {HTMLDivElement} */ (document.getElementById('records-container'));
@@ -408,8 +418,11 @@ class MangaColumn {
       // Check for starts-with match
       const startsWithMatch = MangaColumn.sanitizedName(result.record.title).startsWith(MangaColumn.sanitizedName(hakunekoEntry.hmanga));
 
+      // No Match
+      const noMatch = !directMatch && !startsWithMatch;
+
       // If there's a match, add a "Resolve" button
-      if (directMatch || startsWithMatch) {
+      if (noMatch || directMatch || startsWithMatch) {
         /** @type {mangaReviewItemObj} */
         const selectionObj = {
           titleMatch: 'ta',
@@ -444,7 +457,7 @@ class MangaColumn {
         const infoSymbol = document.createElement('span');
         infoSymbol.style = 'font-size:0.9em; color:gray; margin-left:4px; cursor: help;';
         infoSymbol.textContent = ' ℹ️';
-        infoSymbol.title = directMatch ? 'Direct match by title' : 'Match by title starts with'.concat('\n', `ID: ${result.record.series_id}`, '\n', selectHelpInfo);
+        infoSymbol.title = noMatch ? 'No Match' : (directMatch ? 'Direct match by title' : 'Match by title starts with').concat('\n', `ID: ${result.record.series_id}`, '\n', selectHelpInfo);
         span.appendChild(infoSymbol);
       }
 
@@ -624,6 +637,14 @@ window.addEventListener('DOMContentLoaded', async () => {
   const openReviewBtn = /** @type {HTMLButtonElement} */ (document.getElementById("openReviewBtn"));
 
   // Listen for completion events from main process
+  window.api.onResolveUnmatchedEntryDone(async () => {
+    // Call loadHakuneko
+    await loadHakuneko();
+
+    renderMangas();
+    MangaColumn.setAllDisabled(false);
+  });
+
   window.api.onReloadMangaUpdatesReadingListDone(() => {
     MangaColumn.setAllDisabled(false);
   });

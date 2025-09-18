@@ -37,6 +37,7 @@
   "dependencies": {
     "app-root-path": "^3.1.0",
     "axios": "^1.11.0",
+    "crc-32": "^1.2.2",
     "jszip": "^3.10.1",
     "levenshtein-edit-distance": "^3.0.1",
     "lodash": "^4.17.21",

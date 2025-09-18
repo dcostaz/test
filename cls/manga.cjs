@@ -20,6 +20,7 @@ const template = require('string-placeholder');
 /** @typedef {import('redis').RedisClientType} RedisClientType */
 const redis = require('redis');
 const { console } = require('inspector');
+const { crc32 } = require('zlib');
 
 /** @type {SettingsConstructor} - Settings class Static Elements. */
 const Settings = require(path.join(__root, 'cls', 'settings.cjs'));
@@ -110,10 +111,10 @@ class Manga {
         const dbAdapter = new JSONFile(databaseDir);
 
         /** @type {MangaDBDefaults} - Default tables for the manga database. */
-        const dbDefaultData = { directories: [], readinglist: [], hakuneko: [], mangahakunekomatching: [], mangahakunekonotmatching: [], unmatchedfromreadinglist: [], hakunekotomangaupdateslist: [] };
+        const dbDefaultData = { directories: [], readinglist: [], hakuneko: Object.create(null), mangahakunekomatching: [], mangahakunekonotmatching: [], unmatchedfromreadinglist: [], hakunekotomangaupdateslist: [] };
 
         // Setup the connection db to the JSON settings file
-        /** @type {Low} - References the settings database. */
+        /** @type {Low<dbDefaultData>} - References the settings database. */
         const _db = new Low(dbAdapter, dbDefaultData);
 
         // If the db connection not setup, return null
@@ -1345,17 +1346,111 @@ class Manga {
         template.replace(/\{(\w+)\}/g, (_, key) => values[key]?.toString() ?? 'N/A');
 
     /**
-     * Builds the Hakuneko manga entries from the database.
-     * @returns {Promise<void>} A promise that resolves to an object containing the Hakuneko manga entries.
-     * @example
-     *      // - From the class
-     *      await this.buildMangaHakuneko();
-     * 
-     *      // - Using an instance of the class
-     *      await instance.buildMangaHakuneko();
-     * @async
+     * Processes a single Hakuneko entry to update its details.
+     * @this {Manga}
+     * @param {string} key - The key of the Hakuneko entry.
+     * @param {HakunekoEntry} entry - The Hakuneko entry to process.
+     * @param {mangaListDirectoryEntry[]} directories - The list of available directories.
+     * @param {Record<string, mangaHakuneko>} existingEntries - The existing manga Hakuneko entries.
+     * @returns {Promise<mangaHakuneko|null>} The updated entry, or null if it should be removed.
+     * @private
      */
-    async buildMangaHakuneko() {
+    async _processMangaHakunekoEntry(key, entry, directories, existingEntries) {
+        const slug = key;
+        let updatedEntry = /** @type {mangaHakuneko} */ (entry);
+
+        const seriesFields = ['id', 'title', 'url', 'chapter', 'volume', 'userRating', 'lastChapter', 'associatedTitles',
+            'directory', 'alias', 'mangaupdatesTitleMatch', 'year', 'completed', 'type', 'status'];
+
+        try {
+            updatedEntry = /** @type {mangaHakuneko} */ (Utils.getAdditionalProperties(seriesFields, existingEntries, entry));
+        } catch (error) {
+            console.log(`(_processMangaHakunekoEntry) Working ${slug} when Error: ${error}`);
+            return null;
+        }
+
+        const fullPath = path.join(this.path, entry.hfolder);
+        const foundDirectory = directories.find(dir => dir.key === slug);
+
+        /** Helper that removes a reading list entry by its slug.
+         * @param {string} key - The slug of the entry to remove.
+         * @returns {Promise<boolean|null>} - Returns true if the entry was removed, false if not found or if the database reference is unavailable.
+         */
+        const removeReadingListEntry = async (key) => {
+            // If reference to database is not available, fail gracefully
+            if (!this.db) {
+                console.warn('Database reference not available, cannot remove entry.');
+                return false;
+            }
+
+            /** @type {Low<MangaDBDefaults>} - Reference to [Manga] database. */
+            const db = this.db;
+
+            // Ensure the database is up to date
+            await db.read();
+
+            // Get reading list from database
+            const readinglist = db.data.readinglist;
+
+            // Find index of the entry to remove
+            const idx = readinglist.findIndex(e => String(e.key) === String(key));
+
+            // If found, perform the cleanup
+            if (idx !== -1) {
+                // Get the entry to be removed for logging
+                const entryToRemove = readinglist[idx];
+
+                /** Helper to get log message @param {Record<string, any>} sd @returns {string} */
+                const message = (sd) => `- ID: ${sd.id}, TITLE: ${sd.title}`;
+                console.log(message(entryToRemove));
+
+                // Remove the entry from the reading list
+                this.db.data.readinglist.splice(idx, 1);
+
+                // Write changes to the database immediately
+                await this.db.write();
+
+                return true;
+            }
+
+            return false;
+        }
+
+        // If the directory exists, update the entry
+        if (foundDirectory) {
+            // Get the maximum chapter from the directory entry
+            const max = foundDirectory.lastChapter;
+
+            // If max is not null, update it
+            if (max !== null) {
+                updatedEntry.hlastchapter = max;
+                updatedEntry.hlastModified = foundDirectory.mtime;
+            }
+
+            return updatedEntry;
+        } else {
+            console.warn(`(_processMangaHakunekoEntry) Removing ${slug} due to missing ${fullPath}:`);
+
+            if (! await removeReadingListEntry(slug)) {
+                console.error(`(_processMangaHakunekoEntry) Failed to remove reading list entry for ${slug}`);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+         * Builds a single Hakuneko manga entry from the database.
+         * @param {string} key - The key of the manga series.
+         * @param {number|null} [id] - The ID of the manga series.
+         * @returns {Promise<void>} A promise that resolves when the Hakuneko manga entry has been built.
+         * @async
+         */
+    async buildMangaHakunekoForSerie(key, id = null) {
+        if (!key) {
+            console.error('Invalid key provided to buildMangaHakunekoForSerie');
+            return;
+        }
         // If hakuneko instance not available just return
         if (!this.mangalist?.db || !this.hakuneko?.db || !this.db) return;
 
@@ -1364,6 +1459,7 @@ class Manga {
          */
 
         // Assign instance db to local variable
+        /** @type {Low<MangaDBDefaults>} - Reference to [Manga] database. */
         const db = this.db;
 
         // Make sure it's up to date
@@ -1378,6 +1474,7 @@ class Manga {
         const existingEntries = db.data.hakuneko || {};
 
         // Assign hakuneko instance database to local variable, reserving the use of db to for local class database
+        /** @type {Low<HakunekoDBDefaults>} - Reference to [Manga] database. */
         const hakunekoDB = this.hakuneko.db;
 
         // Make sure it's up to date
@@ -1385,8 +1482,8 @@ class Manga {
 
         // Get existing entries from the Managa hakuneko table
         // This holds an object of objects
-        /** @type {Record<string, HakunekoEntry>} */
-        const hakunekoEntries = hakunekoDB.data.hakuneko || {};
+        /** @type {HakunekoEntries} */
+        const hakunekoEntries = hakunekoDB.data.hakuneko || Object.create(null);
 
         // Assign hakuneko instance database to local variable, reserving the use of db to for local class database
         const mangalistDB = this.mangalist.db;
@@ -1394,131 +1491,32 @@ class Manga {
         // Make sure it's up to date
         await mangalistDB.read();
 
-        /** 
-         * Prepare to target container
-         * 
-         * @type {Record<string, HakunekoEntry>} - (Target) List of Manga Hakuneko. 
-         */
-        const hakuneko = Object.create(null);
+        /** @type {mangaReadingList[]} */
+        const mangalistReadingList = db.data.readinglist;
 
-        /**
-         * Fields to be added to serieDetail from serie
-         * 
-         * @type {additionalPropertiesFields} - Fields to be used for getAdditionalPrpoerties.
-         */
-        const seriesFields = ['id', 'title', 'url', 'chapter', 'volume', 'userRating', 'lastChapter', 'associatedTitles',
-            'directory', 'alias', 'mangaupdatesTitleMatch', 'year', 'completed', 'type', 'status'];
-
-        /**
-         * Fields to be added to serieDetail from hakuneko
-         * 
-         * @type {additionalPropertiesFields} - Fields to be used for getAdditionalPrpoerties.
-         */
-        const hakunekoFields = ['hkey', 'hmanga', 'hconnector', 'hconnectorDescription', 'hfolder',
-            'himageAvailable', 'hlastchapter', 'hchapter', 'hlastModified'];
-
-        /**
-         * Create a tuple to cycle through the records
-         *  key - directory slug
-         *  entry - a record of HakunekoEntry
-         * 
-         * @type {Array<[string, HakunekoEntry]>} - (Source) Tuple of Hakuneko table used as input.
-         */
-        const hakunekoTuples = Object.entries(hakunekoEntries);
-
-        /**
-         * Build hakuneko
-         */
-        for (let [key, entry] of hakunekoTuples) {
-            // Slug of the manga title
-            /** @type {string} - Slug of the manga title. */
-            const slug = key;
-
-            /** @type {mangaHakuneko} */
-            let updatedEntry = /** @type {mangaHakuneko} */ (entry);
-            // Hidrate entry with hakuneko existing entry data for the specified fields
-            // This helps avoid over-writing any changes picked up in the entry object creation
-            //
-            try {
-                updatedEntry = /** @type {mangaHakuneko} */ (Utils.getAdditionalProperties(seriesFields, existingEntries, entry));
-            } catch (error) {
-                console.log(`(buildMangaHakuneko) Working ${slug} when Error: ${error}`);
-                continue;
-            }
-
-            // File system path
-            const fullPath = path.join(this.path, entry.hfolder);
-
-            // Get directories from the manga instance based on the slug
-            // Expecting only one element in the return list
-            /** @type {mangaListDirectoryEntry} - Directories from the manga instance. */
-            const foundDirectory = (directories.filter(entry => { return entry.key === slug; }).filter(Boolean))[0];
-
-            // If the directory is found, get the last chapter
-            if (foundDirectory) {
-                // Get the last chapter from the directory entry
-                /** @type {number|null} - Last chapter from the directory entry. */
-                const max = foundDirectory.lastChapter;
-
-                // If max is not null, update the entry
-                // and add it to the hakuneko object
-                if (max !== null) {
-                    updatedEntry.hlastchapter = max;
-                    updatedEntry.hlastModified = foundDirectory.mtime;
-                    hakuneko[slug] = updatedEntry;
-                    //console.log(`TITLE: ${updatedEntry.hmanga}, MAX-CHAPTER: ${updatedEntry.hlastchapter}, LAST-MODIFIED: ${updatedEntry.hlastModified}`)
-                }
-            } else {
-                console.warn(`(buildMangaHakuneko) Removing ${slug} due to missing ${fullPath}:`);
-                delete hakuneko[slug]; // broken path, remove it
-
-                // If the a record in the mangaupdatesreadinglist we need to remove the entry as well
-                // 1) Find if an entry exists in mangaupdatesreadinglist
-                /**
-                 * @type {MangaUpdatesReadingList[]}
-                 */
-                const readinglist = db.data.readinglist;
-                const idx = readinglist.findIndex(entry => String(entry.key) === String(slug));
-                if (idx !== -1) {
-                    // 1.1) Get the entry from mangaupdatesreadinglist for logging
-                    const entry = db.data.readinglist[idx];
-
-                    // 1.2) Message for log
-                    /**
-                     * Helper to get log message
-                     * @param {Record<string, any>} sd 
-                     * @returns {string}
-                     */
-                    const message = (sd) => `- ID: ${sd.id}, TITLE: ${sd.title}`;
-                    console.log(message(entry));
-
-                    // 1.3) Remove entry from unmatchedfromreadinglist
-                    db.data.readinglist.splice(idx, 1);
-
-                    // 1.4) Write to the database to keep the list synched
-                    // Ensure all changes are written to the database
-                    await db.write();
-                }
-
-            }
-        }
-
-        // return hakuneko;
-
-        if (!hakuneko || !Object.keys(hakuneko).length) {
-            console.log('Could not load Hakuneko reading list.');
-
+        const hakunekoEntry = hakunekoEntries[key];
+        if (!hakunekoEntry) {
+            console.warn(`(buildMangaHakunekoForSerie) Hakuneko entry not found for key: ${key}`);
             return;
         }
 
-        /** @type {mangaReadingList[]} */
-        const mangalistReadingList = db.data.readinglist;
+        let updatedEntry = await this._processMangaHakunekoEntry(key, hakunekoEntry, directories, existingEntries);
+
+        if (!updatedEntry) {
+            console.warn(`(buildMangaHakunekoForSerie) Failed to process Hakuneko entry for key: ${key}`);
+            return;
+        }
+
+        const hakuneko = { [key]: updatedEntry };
 
         const merged = mangalistReadingList.filter(manga => hakuneko[manga.key]) // 🔍 only keep matching series
             .map(manga => {
                 // Hidrate serieDetail object with existing values in hakuneko entry
                 /** @type {mangaHakuneko} */
                 let serieDetail = /** @type {mangaHakuneko} */ (Manga.serieDetailObj(manga));
+
+                const hakunekoFields = ['hkey', 'hmanga', 'hconnector', 'hconnectorDescription', 'hfolder',
+                    'himageAvailable', 'hlastchapter', 'hchapter', 'hlastModified'];
 
                 // Hidrate serieDetail with data from the hakuneko entry referenced by managa.key for the fields specified in hakunekoFields
                 // The result pass back to serieDetail
@@ -1547,7 +1545,6 @@ class Manga {
                     // Assign hakuneko chapter "hchapter" which has the chapter count from the series reader
                     else
                         serieDetail.chapter = Math.floor(serieDetail.hchapter); // ensure that the chapter is a integer (MagaUpdates does not support floating point chapters)
-
                 }
 
                 return serieDetail;
@@ -1555,19 +1552,11 @@ class Manga {
             })
             .filter(Boolean);
 
-        // Update the database with the merged Hakuneko entries
-        db.data.mangahakunekomatching = merged;
-
-        // Ensure all changes are written to the database
-        await db.write();
-
-        // Build mapping index to match chapter marks to the book marks
-        const mangaKeys = new Set(merged.map(manga => manga.key));
-
-        // Build new object with all hakuneko entries that were not matched with mangaupdatesreadinglist
-        const unmatched = Object.fromEntries(Object.entries(hakuneko).filter(([key]) => !mangaKeys.has(key)));
-
-        let mergedRest = Object.entries(unmatched).map(([key, serie]) => {
+        /** 
+         * @param {string} key
+         * @param {HakunekoEntry} serie
+        */
+        const unMatched = (key, serie) => {
             // Fields to be added to serieDetail from serie
             /** @type {additionalPropertiesFields} - Fields to be used for getAdditionalPrpoerties. */
             const seriesFields = ['id', 'title', 'url', 'chapter', 'volume', 'userRating', 'lastChapter', 'associatedTitles',
@@ -1593,32 +1582,138 @@ class Manga {
                 hlastchapter: serie.hlastchapter,
                 hlastModified: serie.hlastModified
             };
-        });
+        }
 
-        // Update the database with the entries without a match
-        db.data.mangahakunekonotmatching = mergedRest;
+        // Use crc32 to compare objects
+        // This is much faster than deep comparison
+        // We only need to know if something changed or not
+        // If something changed, we will update the entry
+        const crc32 = require('crc-32').str;
 
-        // Ensure all changes are written to the database
-        await db.write();
+        let updateNeeded = false;
+        if (merged.length > 0) {
+            const existingIndex = db.data.mangahakunekomatching.findIndex(item => item.key === key);
+            if (existingIndex !== -1) {
+                if (crc32(JSON.stringify(db.data.mangahakunekomatching[existingIndex])) !== crc32(JSON.stringify({ key: merged[0].key, id: merged[0].id }))) {
+                    db.data.mangahakunekomatching[existingIndex] = { key: merged[0].key, id: merged[0].id };
+                    updateNeeded = true;
+                }
+            } else {
+                db.data.mangahakunekomatching.push({ key: merged[0].key, id: merged[0].id });
+                updateNeeded = true;
+            }
+        } else {
+            const existingIndex = db.data.mangahakunekonotmatching.findIndex(item => item.key === key);
+            if (existingIndex !== -1) {
+                if (crc32(JSON.stringify(db.data.mangahakunekonotmatching[existingIndex])) !== crc32(JSON.stringify({ key: key }))) {
+                    db.data.mangahakunekonotmatching[existingIndex] = { key: key };
+                    updateNeeded = true;
+                }
+            } else {
+                db.data.mangahakunekonotmatching.push({ key: key });
+                updateNeeded = true;
+            }
+        }
 
-        const mergeAll = _.merge({}, merged.concat(mergedRest));
+        try {
+            const existingIndex = Object.entries(db.data.hakuneko).findIndex(([_, serie]) => (serie.key === key));
+            const managaHakunekoEntry = merged.length > 0 ? merged[0] : unMatched(key, updatedEntry);
+            if (!managaHakunekoEntry || Object.keys(managaHakunekoEntry).length === 0) {
+                console.error(`(buildMangaHakunekoForSerie) Failed to build managaHakunekoEntry for key: ${key}`);
+                return;
+            }
+            if (existingIndex !== -1) {
+                if (crc32(JSON.stringify(db.data.hakuneko[existingIndex])) !== crc32(JSON.stringify(managaHakunekoEntry))) {
+                    db.data.hakuneko[existingIndex] = managaHakunekoEntry;
+                    updateNeeded = true;
+                }
+            } else {
+                // Find the next available numeric key
+                const numericKeys = Object.keys(db.data.hakuneko).map(k => Number(k)).filter(n => !isNaN(n));
+                const nextIndex = numericKeys.length > 0 ? Math.max(...numericKeys) + 1 : 0;
 
-        // If the merged list was updated, write it to the database
-        if (mergeAll) {
-            db.data.hakuneko = mergeAll;
+                db.data.hakuneko[nextIndex] = managaHakunekoEntry;
+                updateNeeded = true;
+            }
+        } catch (error) {
+            console.error(`(buildMangaHakunekoForSerie) Error processing hakuneko entry for key: ${key}`, error);
+            return;
+        }
 
-            // Ensure all changes are written to the database
+        if (updateNeeded) {
             await db.write();
-
-            console.log('Updated Hakuneko list in database.');
+            console.log(`Updated Hakuneko entry for key: ${key}`);
         }
-        else {
-            console.log('Could not update Hakuneko list.');
-        }
-
-        return;
     }
 
+    /**
+         * Builds the Hakuneko manga entries from the database by processing each series individually.
+         * @this {Manga}
+         * @returns {Promise<void>} A promise that resolves when all Hakuneko manga entries have been built.
+         * @async
+         */
+    async buildMangaHakuneko() {
+        if (!this.db || !this.hakuneko?.db) return;
+
+        /** @type {Low<MangaDBDefaults>} - Reference to [Manga] database. */
+        const db = this.db;
+
+        // Assign hakuneko instance database to local variable, reserving the use of db to for local class database
+        // This is done to avoid confusion between the two databases
+        // The hakuneko database is only used to get the list of hakuneko entries
+        // The manga database is used to get the [Manga] reading list entries and to store the results
+        // The manga database is used to store the processed entries [mangahakunekomatching, mangahakunekonotmatching, hakuneko]
+
+        /** @type {Low<HakunekoDBDefaults>} - Reference to [Hakuneko] database. */
+        const hakunekoDB = this.hakuneko.db;
+
+        // Make sure it's up to date
+        await db.read();
+
+        // Make sure hakuneko database is up to date
+        await hakunekoDB.read();
+
+        const hakunekoEntries = hakunekoDB.data.hakuneko || {};
+        const readingList = db.data.readinglist || [];
+
+        const readingListMap = new Map(readingList.map(item => [item.key, item.id]));
+
+        // Remove all entries in db.data.hakuneko that do not have a property 'key'
+        let removedCount = 0;
+        const hakunekoObj = db.data.hakuneko;
+        for (const k of Object.keys(hakunekoObj)) {
+            if (!hakunekoObj[k] || !('key' in hakunekoObj[k])) {
+                delete hakunekoObj[k];
+                removedCount++;
+            }
+        }
+        if (removedCount > 0) {
+            await db.write();
+            console.log(`Removed ${removedCount} invalid entries from hakuneko database.`);
+        }
+
+        for (const key in hakunekoEntries) {
+            if (Object.prototype.hasOwnProperty.call(hakunekoEntries, key)) {
+                const id = readingListMap.get(key);
+                if (id) {
+                    await this.buildMangaHakunekoForSerie(key, id);
+                } else {
+                    // If the serie is not in the reading list, we can still process it.
+                    // The id is not strictly necessary for the processing itself, but it is for the lookup.
+                    await this.buildMangaHakunekoForSerie(key);
+                }
+            }
+        }
+    }
+
+    /** 
+     * Update MangaUpdates reading list with chapter updates from Hakuneko
+     * This function will build a list of series that have chapter updates in Hakuneko
+     * and update the MangaUpdates reading list accordingly.
+     * @this {Manga}
+     * @returns {Promise<void>} A promise that resolves when the updates are complete.
+     * @async
+     */
     async sendHakunekoChapterUpdatesToMangaUpdates() {
         // Dry function to build a series change object
         // The change object represents the Manga Updates reading list update object
@@ -2480,7 +2575,7 @@ class Manga {
         }
 
         // ➤ 0.2 - To catch any new directories that may have been added since the last update
-        await this.updateDirectories([]);
+        //await this.updateDirectories([]);
 
         // ➤ 0.3 - Check for MangaUpdates instance availability
 
@@ -2583,7 +2678,7 @@ class Manga {
             console.warn(`Duplicate entry details: ${duplicateDetails}`);
 
             // ➤➤➤ 2.1.1.2 - Notify renderer process that it could not be resolved
-            return false;
+            return true;
         }
 
         // ➤ 2.2 - Now we can check if the serie ID is in the MangaUpdates reading list 
@@ -2727,7 +2822,11 @@ class Manga {
                 }
             }
 
-            // ➤➤➤ 3.2.3 - Log message
+            // ➤➤➤ 3.2.3 - Create or update the entry in [Manga] [hakuneko] the mangaHakuneko list
+            // This ensures the series are updated in the UI and tracked for Hakuneko chapter updates
+            await this.buildMangaHakunekoForSerie(serieDetail.key, id);
+
+            // ➤➤➤ 3.2.4 - Log message
             console.log(Manga.createLogMessage(Manga.MangaReadingListTemplate, {
                 prefix: ''.concat('+', serieDetail.mangaupdatesTitleMatch, ' '),
                 id: serieDetail.id,
@@ -2737,7 +2836,7 @@ class Manga {
                 sufix: ' (Added to Manga Reading List)'
             }));
 
-            // ➤➤➤ 3.2.4 - Successfully added the series to the reading list
+            // ➤➤➤ 3.2.5 - Successfully added the series to the reading list
             return true;
         }
         // ➤➤ 3.3 - If not successful, log an error

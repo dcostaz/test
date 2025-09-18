@@ -63,8 +63,10 @@ interface MangaImage {
   name: string;
 }
 
+type HakunekoEntries = { [key: string]: HakunekoEntry };
+
 interface HakunekoDBDefaults extends DBDefaultData {
-  hakuneko: HakunekoEntry[];
+  hakuneko: HakunekoEntries;
   bookmarks: Bookmark[];
   chaptermarks: ChapterMark[];
   mangaimages: MangaImage[];
