@@ -21,7 +21,7 @@ class Hakuneko {
         // Destructure the arguments
         const { db, settings } = args;
 
-        /** @type {Low} - References the Settings database. */
+        /** @type {Low<HakunekoDBDefaults>} - References the Settings database. */
         this.db = db;
 
         /** @type {HakunekoSettings} - Cache of the hakuneko settings. */
