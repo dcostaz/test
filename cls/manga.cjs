@@ -1945,7 +1945,7 @@ class Manga {
                     return {
                         id: foundSerie.record.series_id,
                         title: foundSerie.record.title,
-                        availableSeries: availableSeries,
+                        availableSeries: [], //availableSeries
                     };
                 }
                 catch (error) {
@@ -1955,10 +1955,13 @@ class Manga {
             });
 
             const results = await Promise.all(promises);
+            /** @type {Array<({ id: number, title: string, availableSeries: MangaUpdatesSearchSeriesResultEntry[] }|null)>} */
             const newEntries = results.filter(Boolean);
 
             if (newEntries.length > 0) {
                 for (const entry of newEntries) {
+                    if (!entry) continue;
+
                     if (!htmulLookup.has(entry.id)) {
                         hakunekoToMangaUpdatesList.push(entry);
                         htmulLookup.add(entry.id);
