@@ -111,7 +111,7 @@ class Manga {
         const dbAdapter = new JSONFile(databaseDir);
 
         /** @type {MangaDBDefaults} - Default tables for the manga database. */
-        const dbDefaultData = { directories: [], readinglist: [], hakuneko: Object.create(null), mangahakunekomatching: [], mangahakunekonotmatching: [], unmatchedfromreadinglist: [], hakunekotomangaupdateslist: [] };
+        const dbDefaultData = { directories: [], readinglist: [], hakuneko: Object.create(null), mangahakunekomatching: [], mangahakunekonotmatching: [], unmatchedfromreadinglist: [], hakunekotomangaupdateslist: [], readinglistdiscrepancies: [] };
 
         // Setup the connection db to the JSON settings file
         /** @type {Low<dbDefaultData>} - References the settings database. */
@@ -1981,7 +1981,106 @@ class Manga {
         // Update the database with the hakuneko to manga updates list
         await this.addSerieToMangaUpdatesReadingList(hakunekoToMangaUpdatesList);
 
+        await this.findReadingListDiscrepancies();
+
         return;
+    }
+
+    /**
+     * Find discrepancies between the local reading list and the source MangaUpdates reading list.
+     * @returns {Promise<void>}
+     * @async
+     */
+    async findReadingListDiscrepancies() {
+        // If the Hakuneko instance is not available, return an empty array
+        if (!this.db || !(this.db instanceof Low) || !this.mangalist || !(this.mangalist.db instanceof Low)) {
+            return;
+        }
+
+        // Assign instance db to local variable
+        const db = this.db;
+
+        // Make sure it's up to date
+        await db.read();
+
+        // Assign hakuneko instance database to local variable, reserving the use of db to for local class database
+        const mangalistDB = this.mangalist.db;
+
+        // Make sure it's up to date
+        await mangalistDB.read();
+
+        /** Manga reading list
+         * @type {mangaReadingList[]} - Reference to [Manga] [readinglist] */
+        const mangaReadingList = db.data.readinglist;
+
+        /** Source "MangaUpdates" reading list
+          * @type {mangaupdatesReadingList[]} - Reference to [MangaUpdates] [readinglist] */
+        const mangaupdatesReadingList = mangalistDB.data.readinglist;
+
+        const localListIDs = new Set(mangaReadingList.map(item => item.id));
+        const sourceListIDs = new Set(mangaupdatesReadingList.map(item => item.record.series.id));
+
+        const discrepancies = [];
+
+        // Find series missing from local list
+        for (const sourceItem of mangaupdatesReadingList) {
+            if (!localListIDs.has(sourceItem.record.series.id)) {
+                discrepancies.push({
+                    type: 'missing_local',
+                    id: sourceItem.record.series.id,
+                    title: sourceItem.record.series.title,
+                    data: sourceItem,
+                });
+            }
+        }
+
+        // Find series missing from source list
+        for (const localItem of mangaReadingList) {
+            if (!sourceListIDs.has(localItem.id)) {
+                discrepancies.push({
+                    type: 'missing_source',
+                    id: localItem.id,
+                    title: localItem.title,
+                    data: localItem,
+                });
+            }
+        }
+
+        // Find series with mismatched data
+        for (const localItem of mangaReadingList) {
+            if (sourceListIDs.has(localItem.id)) {
+                const sourceItem = mangaupdatesReadingList.find(item => item.record.series.id === localItem.id);
+                if (sourceItem) {
+                    const mismatchedFields = {};
+                    if (localItem.chapter !== sourceItem.record.status.chapter) {
+                        mismatchedFields.chapter = { local: localItem.chapter, source: sourceItem.record.status.chapter };
+                    }
+                    if (localItem.volume !== sourceItem.record.status.volume) {
+                        mismatchedFields.volume = { local: localItem.volume, source: sourceItem.record.status.volume };
+                    }
+                    if (localItem.userRating !== sourceItem.metadata.user_rating) {
+                        mismatchedFields.userRating = { local: localItem.userRating, source: sourceItem.metadata.user_rating };
+                    }
+                    if (Object.keys(mismatchedFields).length > 0) {
+                        discrepancies.push({
+                            type: 'mismatch',
+                            id: localItem.id,
+                            title: localItem.title,
+                            data: mismatchedFields,
+                        });
+                    }
+                }
+            }
+        }
+
+        db.data.readinglistdiscrepancies = discrepancies;
+        await db.write();
+
+        if (discrepancies.length > 0) {
+            console.log(`Found ${discrepancies.length} discrepancies in the reading list.`);
+        } else {
+            console.log('No discrepancies found in the reading list.');
+        }
     }
 
     /**
