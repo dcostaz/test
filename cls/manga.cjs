@@ -1992,7 +1992,7 @@ class Manga {
      */
     async addSerieToMangaUpdatesReadingList(hakunekoToMangaUpdatesList) {
         // If the MangaUpdates instance is not available, return
-        if (!this.mangaupdates || !(this.mangaupdates instanceof MangaUpdates)) {
+        if (!this.mangaupdates || !(this.mangaupdates instanceof MangaUpdates) || !this.mangalist) {
             return;
         }
 
@@ -2003,6 +2003,9 @@ class Manga {
         if (!this.db || !(this.db instanceof Low) || !this.mangalist || !(this.mangalist.db instanceof Low)) {
             return;
         }
+
+        // Force a refresh of the MangaUpdates reading list
+        await this.mangalist.getReadingList(true);
 
         // Assign instance db to local variable
         const db = this.db;
@@ -2061,12 +2064,14 @@ class Manga {
                     // Replace with the actual function call and payload as needed
                     /** @type {import('axios').AxiosResponse} */
                     const result = /** @type {import('axios').AxiosResponse} */ (await mangaUpdatesInstance.addListSeries(payload));
-                    if (result.status === 200) {
+                    if (result.status >= 200 && result.status < 300) {
                         console.log(`Added ${payload.length} series to MangaUpdates reading list.`);
                         console.log(result.data);
                         processed = true;
                         // Add the new series to the lookup map to avoid duplicates in the next batch
                         payload.forEach(item => murlLookup.set(item.series.id, item));
+                    } else {
+                        console.error(`Error adding batch to MangaUpdates: Status ${result.status}`, result.data);
                     }
                 } catch (err) {
                     console.error('Error adding batch to MangaUpdates:', err);

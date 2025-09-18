@@ -828,6 +828,10 @@ class MangaUpdates {
         // Step 3: Use the token to call the protected endpoint
         try {
             const response = await axios.post(addListSeriesEndpoint, payload, RequestConfig);
+            if (response.data && response.data.status === 'EXCEPTION') {
+                console.warn('(addListSeries) API Error:', ' [Status]:', response.status, '[Message]', response.data);
+                return { status: 400, data: response.data };
+            }
             responseData = response;
         } catch (error) {
             if (axios.isAxiosError(error)) {
@@ -839,7 +843,7 @@ class MangaUpdates {
                     }
                 );
 
-                return { status: 200, data: error.response?.data };
+                return { status: error.response?.status ?? 500, data: error.response?.data };
             }
             else
                 throw MangaUpdates.formatAxiosError(error, 'addListSeries');
