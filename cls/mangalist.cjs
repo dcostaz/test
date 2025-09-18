@@ -24,7 +24,7 @@ class MangaList {
         // Destructure the arguments
         const { db, settings, mangaupdates } = args;
 
-        /** @type {Low} - References the mangalist database.*/
+        /** @type {Low<MangaListDBDefaults>} - References the mangalist database.*/
         this.db = db;
 
         /** @type {SettingsClass} - References the manga-list application settings.*/

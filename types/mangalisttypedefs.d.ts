@@ -7,13 +7,13 @@ interface MangaList {
 }
 
 interface MangaListParameters {
-  db: Low;
+  db: Low<MangaListDBDefaults>;
   settings: Settings;
   mangaupdates?: MangaUpdatesClass;
 }
 
 interface MangaListClass {
-  db: Low;
+  db: Low<MangaListDBDefaults>;
   settings: Settings;
   mangaupdates?: MangaUpdatesClass;
 

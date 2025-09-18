@@ -1,12 +1,12 @@
 // types/hakunekotypedefs.d.ts
 
 interface HakunekoParameters {
-  db: Low;
+  db: Low<HakunekoDBDefaults>;
   settings: HakunekoSettings;
 };
 
 declare interface HakunekoClass {
-  db: Low<any>;
+  db: Low<HakunekoDBDefaults>;
   settings: HakunekoSettings;
 
   rebuildHakuneko(): Promise<void>;

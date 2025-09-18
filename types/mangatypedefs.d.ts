@@ -1,7 +1,7 @@
 // types/mangatypedefs.d.ts
 
 interface MangaParameters {
-  db: Low;
+  db: Low<MangaDBDefaults>;
   settings: SettingsClass;
   mangaupdates?: MangaUpdatesClass;
   mangalist?: MangaListClass;
