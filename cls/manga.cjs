@@ -1894,10 +1894,6 @@ class Manga {
             searchSeries.push(Manga.searchSerieTemplate(value.hmanga));
         });
 
-        let counter = 0;
-        /** @type {any[][]} */
-        let seriesToAddToList = [];
-
         // If the MangaUpdates instance is not available, return
         if (!this.mangaupdates || !(this.mangaupdates instanceof MangaUpdates)) {
             return;
@@ -1916,61 +1912,67 @@ class Manga {
         // Create a lookup set for quick access
         const htmulLookup = new Set(hakunekoToMangaUpdatesList.map(item => item.id));
 
-        for (let i = 0; i < searchSeries.length; i++) {
-            try {
-                /** @type {Record<string, unknown>} */
-                const searchTitle = searchSeries[i];
+        const batchSize = 5;
+        for (let i = 0; i < searchSeries.length; i += batchSize) {
+            const batch = searchSeries.slice(i, i + batchSize);
+            const promises = batch.map(async (searchTitle) => {
+                try {
+                    /** @type {MangaUpdatesSearchSeriesResultEntry[]} */
+                    const search = await mangaUpdatesInstance.serieSearch(searchTitle);
 
-                /** @type {MangaUpdatesSearchSeriesResultEntry[]} */
-                const search = await mangaUpdatesInstance.serieSearch(searchTitle);
+                    // Check if search returned any results
+                    if (!search || Object.values(search).length === 0) return null;
 
-                // Check if search returned any results
-                if (!search || Object.values(search).length === 0) continue;
+                    // Get series where the hit_title matches the search title
+                    const availableSeries = Object.values(search).filter(item => Utils.normalizeText(item.hit_title) === Utils.normalizeText(/** @type {string} */(searchTitle.search)));
 
-                // Get series where the hit_title matches the search title
-                const availableSeries = Object.values(search).filter(item => Utils.normalizeText(item.hit_title) === Utils.normalizeText(/** @type {string} */(searchTitle.search)));
+                    // Skip if no serie was found
+                    if (!availableSeries || availableSeries.length === 0) return null;
 
-                // Skip if no serie was found
-                if (!availableSeries || availableSeries.length === 0) continue;
+                    // Get the first found series. In theory, there should only be one that is an exact match
+                    const foundSerie = availableSeries[0];
 
-                // Get the first found series. In theory, there should only be one that is an exact match
-                const foundSerie = availableSeries[0];
+                    // If the series is already in the hakunekoToMangaUpdatesList, skip it
+                    if (htmulLookup.has(foundSerie.record.series_id)) {
+                        return null;
+                    }
 
-                // If the series is already in the hakunekoToMangaUpdatesList, skip it
-                if (htmulLookup.has(foundSerie.record.series_id)) {
-                    continue;
+                    // Check if the series is already in the MangaUpdatesreading list
+                    const idx = mangaupdatesReadingList.findIndex(rd => rd.record.series.id == foundSerie.record.series_id);
+
+                    if (idx !== -1) return null;
+
+                    return {
+                        id: foundSerie.record.series_id,
+                        title: foundSerie.record.title,
+                        availableSeries: availableSeries,
+                    };
                 }
+                catch (error) {
+                    console.log(error);
+                    return null;
+                }
+            });
 
-                // Calculate the current block number
-                const block = Math.floor(counter / 25);
+            const results = await Promise.all(promises);
+            const newEntries = results.filter(Boolean);
 
-                // Check if the series is already in the MangaUpdatesreading list
-                const idx = mangaupdatesReadingList.findIndex(rd => rd.record.series.id == foundSerie.record.series_id);
-
-                if (idx !== -1) continue;
-
-                // Initialize the subarray if it doesn't exist
-                if (!seriesToAddToList[block] || !Array.isArray(seriesToAddToList[block]))
-                    seriesToAddToList[block] = [];
-
-                // Add hakuneko series that can be added to manga updates
-                hakunekoToMangaUpdatesList.push({
-                    id: foundSerie.record.series_id,
-                    title: foundSerie.record.title,
-                    availableSeries: availableSeries,
-                });
+            if (newEntries.length > 0) {
+                for (const entry of newEntries) {
+                    if (!htmulLookup.has(entry.id)) {
+                        hakunekoToMangaUpdatesList.push(entry);
+                        htmulLookup.add(entry.id);
+                    }
+                }
             }
-            catch (error) {
-                console.log(error);
+
+            if (i + batchSize < searchSeries.length) {
+                await Utils.wait(1000); // Wait 1 second between batches
             }
-            //console.log(JSON.stringify(availableSeries));
+        }
 
-            // Increment the counter
-            counter++;
-
-            await db.write();
-
-            await Utils.wait(1000);
+        if (hakunekoToMangaUpdatesList.length > (db.data.hakunekotomangaupdateslist || []).length) {
+             await db.write();
         }
 
         // Update the database with the hakuneko to manga updates list
@@ -2017,11 +2019,13 @@ class Manga {
         const murlLookup = new Map(mangaupdatesReadingList.map(item => [item.record.series.id, item]));
 
         if (hakunekoToMangaUpdatesList.length) {
+            let processed = false;
             // Batch process hakunekoToMangaUpdatesList in chunks of 25
-            while (hakunekoToMangaUpdatesList.length > 0) {
+            const batchSize = 25;
+            for (let i = 0; i < hakunekoToMangaUpdatesList.length; i += batchSize) {
                 // Take the first 25 records
                 /** @type {Array<{ id: number, title: string, availableSeries: MangaUpdatesSearchSeriesResultEntry[] }>} */
-                const batch = hakunekoToMangaUpdatesList.slice(0, 25);
+                const batch = hakunekoToMangaUpdatesList.slice(i, i + batchSize);
 
                 // Prepare the payload for addListSeries
                 const payload = batch
@@ -2044,71 +2048,38 @@ class Manga {
                     })
                     .filter(Boolean);
 
-                /** @type {Array<{ id: number, title: string, availableSeries: MangaUpdatesSearchSeriesResultEntry[] }>} */
-                let skipped = [];
-
-                if (payload.length !== batch.length) {
-                    skipped = batch.filter(item => murlLookup.has(item.id));
-                }
-
-                // Initialize success flag
-                let success = false;
-
                 // If no valid payload, skip the batch
-                if (payload.length !== 0) {
-                    // Call the function (replace with your actual function)
-                    try {
-                        // Replace with the actual function call and payload as needed
-                        /** @type {import('axios').AxiosResponse} */
-                        const result = /** @type {import('axios').AxiosResponse} */ (await mangaUpdatesInstance.addListSeries(payload));
-                        if (result.status === 200) {
-                            console.log(`Added ${payload.length} series to MangaUpdates reading list.`);
-                            console.log(result.data);
-                            success = true;
-                        }
-                    } catch (err) {
-                        console.error('Error adding batch to MangaUpdates:', err);
-                    }
+                if (payload.length === 0) {
+                    continue;
                 }
 
-                // If successful or skipped, remove the processed records from the list
-                if (success || skipped.length) {
-                    try {
-                        if (success) {
-                            // API call was successful, so the whole batch is processed.
-                            hakunekoToMangaUpdatesList.splice(0, batch.length);
-                        } else { // success is false, but there were skipped items
-                            // This part of the logic seems to handle removing only skipped items.
-                            // It's complex, but let's see if it's correct for this case.
-                            // It is removing from the main list by index, which is correct.
-                            if (batch.length !== skipped.length && skipped.length !== 0) {
-                                // Remove skipped records from hakunekoToMangaUpdatesList
-                                for (const skip of skipped) {
-                                    const idx = hakunekoToMangaUpdatesList.findIndex(item => item.id === skip.id);
-                                    if (idx !== -1) {
-                                        hakunekoToMangaUpdatesList.splice(idx, 1);
-                                    }
-                                }
-                            }
-                            // If all records were skipped, remove the entire batch
-                            else {
-                                // Remove the processed batch (first 25 records)
-                                hakunekoToMangaUpdatesList.splice(0, batch.length); // use batch.length to be safe
-                            }
-                        }
-
-                        // Write changes to the database
-                        await db.write();
-                    } catch (error) {
-                        console.error('Failed removing records from Hakuneko to MangaUpdates list:', error);
+                // Call the function (replace with your actual function)
+                try {
+                    // Replace with the actual function call and payload as needed
+                    /** @type {import('axios').AxiosResponse} */
+                    const result = /** @type {import('axios').AxiosResponse} */ (await mangaUpdatesInstance.addListSeries(payload));
+                    if (result.status === 200) {
+                        console.log(`Added ${payload.length} series to MangaUpdates reading list.`);
+                        console.log(result.data);
+                        processed = true;
+                        // Add the new series to the lookup map to avoid duplicates in the next batch
+                        payload.forEach(item => murlLookup.set(item.series.id, item));
                     }
-                } else {
-                    // If not successful, break to avoid infinite loop
-                    break;
+                } catch (err) {
+                    console.error('Error adding batch to MangaUpdates:', err);
+                    break; // If a batch fails, stop processing to avoid further errors
                 }
 
                 // Optional: wait between batches to avoid rate limits
-                await Utils.wait(2000);
+                if (i + batchSize < hakunekoToMangaUpdatesList.length) {
+                    await Utils.wait(2000);
+                }
+            }
+
+            if(processed) {
+                // Filter out the series that have been successfully added
+                db.data.hakunekotomangaupdateslist = db.data.hakunekotomangaupdateslist.filter(item => !murlLookup.has(item.id));
+                await db.write();
             }
         }
 
