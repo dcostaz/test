@@ -110,6 +110,7 @@ interface MangaDBDefaults extends DBDefaultData {
   mangahakunekonotmatching: MangaHakunekoMatching[];
   unmatchedfromreadinglist: mangaSerieReviewitemObj[];
   hakunekotomangaupdateslist: MangaHakunekoToMangaUpdatesList[];
+  readinglistdiscrepancies: any[];
 }
 
 /**

@@ -2051,7 +2051,8 @@ class Manga {
             if (sourceListIDs.has(localItem.id)) {
                 const sourceItem = mangaupdatesReadingList.find(item => item.record.series.id === localItem.id);
                 if (sourceItem) {
-                    const mismatchedFields = {};
+                    /** @type {{chapter: {local: number, source: number}, volume: {local: number, source: number}, userRating: {local: number, source: number}}} */
+                    const mismatchedFields = Object.create(null);
                     if (localItem.chapter !== sourceItem.record.status.chapter) {
                         mismatchedFields.chapter = { local: localItem.chapter, source: sourceItem.record.status.chapter };
                     }
@@ -2103,9 +2104,6 @@ class Manga {
             return;
         }
 
-        // Force a refresh of the MangaUpdates reading list
-        await this.mangalist.getReadingList(true);
-
         // Assign instance db to local variable
         const db = this.db;
 
@@ -2117,6 +2115,19 @@ class Manga {
 
         // Make sure it's up to date
         await mangalistDB.read();
+
+        // Ensure new entries in hakunekoToMangaUpdatesList are added to db.data.hakunekotomangaupdateslist
+        if (Array.isArray(hakunekoToMangaUpdatesList)) {
+            // Create a Set of existing IDs for fast lookup
+            const existingIds = new Set((db.data.hakunekotomangaupdateslist || []).map(item => item.id));
+            // Add only those entries that are not already present
+            hakunekoToMangaUpdatesList.forEach(item => {
+            if (!existingIds.has(item.id)) {
+                db.data.hakunekotomangaupdateslist.push(item);
+            }
+            });
+            await db.write();
+        }
 
         /** Source "MangaUpdates" reading list
           * @type {mangaupdatesReadingList[]} - Reference to [MangaUpdates] [readinglist] */
@@ -2696,41 +2707,42 @@ class Manga {
                 return false;
             }
 
-            /**
-             *  ➤➤➤ 2.2.1.5 - Add the temporary reading item entry to the MangaList reading list
-             * This ensures that the entry is available for further processing
-             * It will be removed from the review list once the reading list is refreshed from MangaUpdates
-             */
-            mangalistDB.data.readinglist.push(readingItemEntry);
-
-            // ➤➤➤ 2.2.1.6 - Write changes to the database
-            await mangalistDB.write();
-
-            // ➤➤➤ 2.2.1.7 - Get existing hakuneko to manga updates list entries
+            // ➤➤➤ 2.2.1.5 - Get existing hakuneko to manga updates list entries
             // Initialize the hakuneko to manga updates list
             /** @type {Array<{ id: number, title: string, availableSeries: MangaUpdatesSearchSeriesResultEntry[] }>} */
             const hakunekoToMangaUpdatesList = db.data.hakunekotomangaupdateslist || [];
 
-            // ➤➤➤ 2.2.1.8 - Add the un resolved entry to the hakuneko to local manga updates reading list
+            // ➤➤➤ 2.2.1.6 - Add the un resolved entry to the hakuneko to local manga updates reading list
             if (hakunekoToMangaUpdatesList && Array.isArray(hakunekoToMangaUpdatesList)) {
-                // ➤➤➤➤ 2.2.1.8.0 - Add entry to the update list for the API call
+                // ➤➤➤➤ 2.2.1.6.0 - Add entry to the update list for the API call
                 hakunekoToMangaUpdatesList.push({
                     id: seriesEntry.series_id,
                     title: seriesEntry.title,
                     availableSeries: [], // Not needed here
                 });
 
-                // ➤➤➤➤ 2.2.1.8.1 - Write changes to the database
+                // ➤➤➤➤ 2.2.1.6.1 - Write changes to the database
                 await db.write();
 
-                // ➤➤➤➤ 2.2.1.8.2 - Add series to the MangaUpdates reading list
+                // ➤➤➤➤ 2.2.1.6.2 - Add series to the MangaUpdates reading list
                 await this.addSerieToMangaUpdatesReadingList(hakunekoToMangaUpdatesList);
             }
-            // ➤➤➤ 2.2.1.9 - If the hakuneko to manga updates list is not available, notify renderer process that it could not be resolved
+            // ➤➤➤ 2.2.1.7 - If the hakuneko to manga updates list is not available, notify renderer process that it could not be resolved
             else {
                 console.error('Hakuneko to MangaUpdates list was not available during record creation');
                 return false;
             }
+
+            /**
+             *  ➤➤➤ 2.2.1.8 - Add the temporary reading item entry to the MangaList reading list
+             * This ensures that the entry is available for further processing
+             * It will be removed from the review list once the reading list is refreshed from MangaUpdates
+             */
+            mangalistDB.data.readinglist.push(readingItemEntry);
+
+            // ➤➤➤ 2.2.1.9 - Write changes to the database
+            await mangalistDB.write();
+
         }
         // ➤ ➤➤ 2.2.1 - If the entry was found in the MangaUpdates reading list, use it to assign the readingItemEntry
         else {
@@ -2789,11 +2801,33 @@ class Manga {
                 }
             }
 
-            // ➤➤➤ 3.2.3 - Create or update the entry in [Manga] [hakuneko] the mangaHakuneko list
+            // ➤➤➤ 3.2.4 - If the Hakuneko instance is not available, return false
+            // Rebuild [Hakuneko] series images
+            // This ensures that the series image is available in the Hakuneko list
+            // and that the image key is updated in the database
+            // ➤➤➤➤ 3.2.4.0 - Check Hakuneko instance availability
+            if(!this.hakuneko || !(this.hakuneko instanceof Hakuneko)) {
+                console.error('Hakuneko instance is not available to rebuild images');
+                return false;
+            }
+
+            // ➤➤➤➤ 3.2.4.1 - Rebuild [Hakuneko] series images
+            await this.hakuneko.rebuildHakunekoImages();
+
+            // ➤➤➤➤ 3.2.4.2 - Rebuild [Hakuneko] series list
+            await this.hakuneko.rebuildHakuneko();
+
+            // ➤➤➤ 3.2.5 - Create or update the entry in [Manga] [hakuneko] the mangaHakuneko list
             // This ensures the series are updated in the UI and tracked for Hakuneko chapter updates
             await this.buildMangaHakuneko();
 
-            // ➤➤➤ 3.2.4 - Log message
+            // ➤➤➤ 3.2.6 - Log message
+            if(!this.hakuneko || !(this.hakuneko instanceof Hakuneko)) {
+                console.error('Hakuneko instance is not available to rebuild images');
+                return false;
+            }
+
+            // ➤➤➤ 3.2.7 - Log message
             console.log(Manga.createLogMessage(Manga.MangaReadingListTemplate, {
                 prefix: ''.concat('+', serieDetail.mangaupdatesTitleMatch, ' '),
                 id: serieDetail.id,
@@ -2803,7 +2837,7 @@ class Manga {
                 sufix: ' (Added to Manga Reading List)'
             }));
 
-            // ➤➤➤ 3.2.5 - Successfully added the series to the reading list
+            // ➤➤➤ 3.2.8 - Successfully added the series to the reading list
             return true;
         }
         // ➤➤ 3.3 - If not successful, log an error
