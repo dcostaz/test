@@ -180,9 +180,9 @@ class Manga {
      * @private
      */
     async _getDirectories(existingDirectories, srcPath, sortByDate = true, stripTimestamp = false, modifiedDirectories = []) {
-        /** 
+        /**
          * Static method to get the maximum chapter from a directory
-         * @param {string} dirPath 
+         * @param {string} dirPath
         */
         const getMaxChapterFromDirectory = async function (dirPath) {
             // Check if directory PathName is provided
@@ -663,19 +663,19 @@ class Manga {
      */
     static MangaReadingListTemplate = Object.freeze('{prefix}ID: {id}, TITLE: {title}, ALIAS: {alias}, DIRECTORY: {directory}{sufix}');
 
-    /** 
+    /**
      * Start process to find new series by scraping [MangaList] mangaupdates reading list
      * Then add them to the [Manga] reading list
      * It will skip series that are already in the reading list
      * It will also add series to the review list if it cannot find a match
-     * 
+     *
      * This handles the primary scenario for adding new series without user intervention
      * @this {Manga}
      * @returns {Promise<void>}
      * @example
      *      // With the intance of Manga class
      *      await instance.addNewSeries();
-     * 
+     *
      *      // Locally from the class
      *      await this.addNewSeries();
      * @async
@@ -734,7 +734,7 @@ class Manga {
                 await db.write();
                 console.log('Keys sync has been saved.')
             }
-        
+
             // Corrects image files name when the comparison of both matches
             const imageDir = path.join(__dirname, 'images/manga/');
             if (!await renameImageFilesToMatchKeys(db, imageDir)) {
@@ -785,7 +785,7 @@ class Manga {
             // No details were returned for serie from MangaUpdates
             else if (status === Enums.GET_READINGLIST_SERIEDETAIL_STATUS.NO_DETAILS) continue;
 
-            // Serie is in queued for review 
+            // Serie is in queued for review
             else if (status === Enums.GET_READINGLIST_SERIEDETAIL_STATUS.IN_REVIEW) continue;
 
             // 2) Save unmatched entry for review (troubleshooting)
@@ -900,8 +900,8 @@ class Manga {
      *         }
      *     },
      * ]
-     * 
-     * @param {MangaUpdatesReadingListSearchResultsEntry} readingItem 
+     *
+     * @param {MangaUpdatesReadingListSearchResultsEntry} readingItem
      * @returns {mangaReadingItemObj}
      * @static
      */
@@ -950,8 +950,8 @@ class Manga {
      *     key: titleToSlug(directory),
      * }
      * );
-     * 
-     * @param {mangaReviewItemObj} reviewItem 
+     *
+     * @param {mangaReviewItemObj} reviewItem
      * @returns {mangaReviewItemObj}
      * @static
      */
@@ -972,7 +972,7 @@ class Manga {
      * This function has two modes:
      *  1) get serie by direct match
      *  2) get serie from review selection
-     * @example 
+     * @example
      *      const readingItems = {
      *           readingItem: readingItem, // Reading list item from MangaUpdates reading list
      *           reviewItem: Object.create(null), // Selected option for serie in review
@@ -995,7 +995,7 @@ class Manga {
      *       // Get the series details from the reading item
      *       const { status, serieDetail, serieReview } = await this.getReadingListSerieDetail(readingItems);
      *
-     * @param {mangaReadingItems} readingItems 
+     * @param {mangaReadingItems} readingItems
      * @returns {Promise<GetReadingListSerieDetailResult>}
      * @async
      */
@@ -1589,7 +1589,7 @@ class Manga {
         }
     }
 
-    /** 
+    /**
      * Update MangaUpdates reading list with chapter updates from Hakuneko
      * This function will build a list of series that have chapter updates in Hakuneko
      * and update the MangaUpdates reading list accordingly.
@@ -1600,13 +1600,13 @@ class Manga {
     async sendHakunekoChapterUpdatesToMangaUpdates() {
         // Dry function to build a series change object
         // The change object represents the Manga Updates reading list update object
-        /** 
+        /**
          * @typedef {{
          *   seriesID: number,
          *   listID: number,
          *   newChapter: number
-         * }} bls 
-         * 
+         * }} bls
+         *
          * @typedef {[number?, object?]} SeriesUpdate
          */
 
@@ -1824,8 +1824,8 @@ class Manga {
 
     /**
      * Helper function to create a list entry.
-     * @param {number} serieID 
-     * @param {string} serieTitle 
+     * @param {number} serieID
+     * @param {string} serieTitle
      * @returns {Record<string, unknown>}
      * @static
      */
@@ -1874,7 +1874,7 @@ class Manga {
         /**
          * An array of entries from the `db.data.hakuneko` object, sorted alphabetically by the `hmanga` property (case-insensitive).
          * Each entry is a tuple where the first element is the key (string) and the second element is the value (object with an optional `hmanga` property).
-         * 
+         *
          * @type {Array<[string, mangaHakuneko]>} - Sorted entries from the `db.data.hakuneko` object.
          */
         const sortedUnmatched = Object.entries(db.data.hakuneko).sort((a, b) => {
@@ -2074,21 +2074,27 @@ class Manga {
                 // If successful or skipped, remove the processed records from the list
                 if (success || skipped.length) {
                     try {
-                        // Do one by one removal if there are skipped records, as long as its not all of the batch
-                        if (batch.length !== skipped.length && skipped.length !== 0) {
-                            // Remove skipped records from hakunekoToMangaUpdatesList
-                            for (const skip of skipped) {
-                                const idx = hakunekoToMangaUpdatesList.findIndex(item => item.id === skip.id);
-                                if (idx !== -1) {
-                                    hakunekoToMangaUpdatesList.splice(idx, 1);
+                        if (success) {
+                            // API call was successful, so the whole batch is processed.
+                            hakunekoToMangaUpdatesList.splice(0, batch.length);
+                        } else { // success is false, but there were skipped items
+                            // This part of the logic seems to handle removing only skipped items.
+                            // It's complex, but let's see if it's correct for this case.
+                            // It is removing from the main list by index, which is correct.
+                            if (batch.length !== skipped.length && skipped.length !== 0) {
+                                // Remove skipped records from hakunekoToMangaUpdatesList
+                                for (const skip of skipped) {
+                                    const idx = hakunekoToMangaUpdatesList.findIndex(item => item.id === skip.id);
+                                    if (idx !== -1) {
+                                        hakunekoToMangaUpdatesList.splice(idx, 1);
+                                    }
                                 }
                             }
-                        }
-
-                        // If all records were skipped, remove the entire batch
-                        else {
-                            // Remove the processed batch (first 25 records)
-                            hakunekoToMangaUpdatesList.splice(0, 25);
+                            // If all records were skipped, remove the entire batch
+                            else {
+                                // Remove the processed batch (first 25 records)
+                                hakunekoToMangaUpdatesList.splice(0, batch.length); // use batch.length to be safe
+                            }
                         }
 
                         // Write changes to the database
@@ -2224,9 +2230,9 @@ class Manga {
         // Make sure it's up to date
         await db.read();
 
-        /** 
+        /**
          * Get the Manga review list
-         * 
+         *
          * @type {MangaHakunekoList} - Reference to [Manga] [unmatchedfromreadinglist] */
         const mangaHakunekoList = db.data.hakuneko || Object.create(null);
 
@@ -2237,10 +2243,10 @@ class Manga {
     /**
      * Re-build the MangaUpdates Reading List
      * The Reading List is user controlled, so user can decide to update, when he changes it
-     * 
+     *
      * The data dependency flow is:
      *      (top) MangaUpdates Reading List (bottom)
-     * 
+     *
      * The interface for a single entry is:
      *      MangaUpdatesReadingListSearchResultsEntry
      *
@@ -2255,7 +2261,7 @@ class Manga {
 
         // Force MangaUpdates API wrapper to ignore the cached data and re-get from MangaUpdates
         // This data is cached to avoid hitting the server excessively
-        // 
+        //
         const ignoreCache = true;
 
         // Load manga reading list
@@ -2389,9 +2395,9 @@ class Manga {
         // Make sure it's up to date
         await db.read();
 
-        /** 
+        /**
          * Get the Manga review list
-         * 
+         *
          * @type {mangaSerieReviewitemObj[]} - Reference to [Manga] [unmatchedfromreadinglist] */
         const mangaReviewList = db.data.unmatchedfromreadinglist || [];
 
@@ -2399,17 +2405,17 @@ class Manga {
         return mangaReviewList
     }
 
-    /** 
+    /**
      * Resolve reading list items in review
      * The selectedEntry is the option chosen by the user from the review list resolve or serie resolve action(s)
-     * 
+     *
      * This function differs from the addNewSeries function, as we need to handle the case where the entry is not found in:
      * - the MangaUpdates reading list [MangaList] [readinglist]
      *
      * Also note that we do not refresh the MangaUpdates reading list here, as the user may be in the process of resolving multiple entries
      * And we need to be moderate in our requests to MangaUpdates to avoid hitting their rate limits, especially pulling the entire reading list again
      * That is why we use the cached data, and only refresh it when the user explicitly requests it
-     * 
+     *
      * This function is used in two scenarios:
      * 1. The user is resolving an unmatched entry from the review list
      * 2. The user is resolving a series that is not found in [Manga] [readinglist] but is found in [Manga] [hakuneko]
@@ -2417,7 +2423,7 @@ class Manga {
      * - Add the series to the MangaUpdates reading list if not already present
      * - Add the series to the Manga reading list
      * - Remove the entry from the review list
-     * 
+     *
      * Note: The series ID is used as the unique identifier to reference series in MangaUpdates series
      *       And the directory key is used as the unique identifier for all local data
      *
@@ -2428,7 +2434,7 @@ class Manga {
      *                                     |-- [Manga] Manga directories (bottom)
      *                                         (provides the series existence and naming context, also the last chapter available)
      *                                         (the key is unique, and used across all database except for MangaList, and is a "slug" of the directory name)
-     * 
+     *
      *   (top) [Manga] [hakuneko] <--- [Manga] Manga reading list <--- [MangaList] MangaUpdates reading list (bottom)
      *                             ^
      *                             |-- [Hakuneko] Registry of Manga being followed
@@ -2436,7 +2442,7 @@ class Manga {
      *                             |   (The series image is stored locally, and the name is the key with a .jpg extension)
      *                             |
      *                             |-- [Manga] Manga directories (bottom)
-     * 
+     *
      * @this {Manga}
      * @param {number} id
      * @param {mangaReviewItemObj} selectedEntry
@@ -2564,7 +2570,7 @@ class Manga {
             return true;
         }
 
-        // ➤ 2.2 - Now we can check if the serie ID is in the MangaUpdates reading list 
+        // ➤ 2.2 - Now we can check if the serie ID is in the MangaUpdates reading list
 
         // ➤➤ 2.2.0 - Get the entry index from [mangalistDB.data.readinglist] table by ID
         const idxMURL = mangalistReadingList.findIndex(entry => entry.record.series.id === id);
@@ -2731,7 +2737,7 @@ class Manga {
         return false;
     }
 
-    /** 
+    /**
      * Remove item in review from the review list
      * @param {number} id
      * @returns {Promise<boolean>}
